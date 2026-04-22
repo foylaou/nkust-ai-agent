@@ -199,51 +199,51 @@ transition: slide-left
 
 <div class="h-full flex flex-col py-4 px-8">
 
-<div class="text-center mb-6">
-<div class="text-xs uppercase tracking-[0.4em] text-red-400 mb-2">The Reality Gap</div>
+<div class="text-center mb-4">
+<div class="text-xs uppercase tracking-[0.4em] text-red-400 mb-1">The Reality Gap</div>
 <h2 class="text-2xl font-light text-white !my-0">理想很豐滿，現實很骨感</h2>
-<div class="text-sm text-white/50 mt-2 italic">部署與管理 MCP Server 的三大難題</div>
+<div class="text-sm text-white/50 mt-1 italic">部署與管理 MCP Server 的三大難題</div>
 </div>
 
-<div class="grid grid-cols-3 gap-6 flex-1">
+<div class="grid grid-cols-3 gap-4 flex-1">
 
-<div v-click="1" class="bg-slate-900/60 border border-slate-700 rounded-xl p-5 flex flex-col">
-  <div class="text-3xl mb-4">🐳</div>
-  <div class="text-lg font-semibold text-white mb-2">部署地獄</div>
-  <div class="text-xs text-white/60 leading-relaxed">
+<div v-click="1" class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex flex-col">
+  <div class="text-2xl mb-2">🐳</div>
+  <div class="text-base font-semibold text-white mb-1">部署地獄</div>
+  <div class="text-[11px] text-white/60 leading-relaxed">
     每個 MCP Server 都要跑一個 Docker 或本地 Process？連接埠怎麼管？
   </div>
-  <div class="mt-auto pt-4 border-t border-slate-800 text-[10px] text-red-400">
+  <div class="mt-auto pt-3 border-t border-slate-800 text-[9px] text-red-400">
     → 「我只想接個 Slack，為什麼要管 K8s？」
   </div>
 </div>
 
-<div v-click="2" class="bg-slate-900/60 border border-slate-700 rounded-xl p-5 flex flex-col">
-  <div class="text-3xl mb-4">🔑</div>
-  <div class="text-lg font-semibold text-white mb-2">認證與密鑰</div>
-  <div class="text-xs text-white/60 leading-relaxed">
+<div v-click="2" class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex flex-col">
+  <div class="text-2xl mb-2">🔑</div>
+  <div class="text-base font-semibold text-white mb-1">認證與密鑰</div>
+  <div class="text-[11px] text-white/60 leading-relaxed">
     API Keys 存在哪？每個工程師本地都要存一份 .env？
   </div>
-  <div class="mt-auto pt-4 border-t border-slate-800 text-[10px] text-red-400">
+  <div class="mt-auto pt-3 border-t border-slate-800 text-[9px] text-red-400">
     → 「萬一工程師電腦丟了，金鑰就外洩了。」
   </div>
 </div>
 
-<div v-click="3" class="bg-slate-900/60 border border-slate-700 rounded-xl p-5 flex flex-col">
-  <div class="text-3xl mb-4">🛡️</div>
-  <div class="text-lg font-semibold text-white mb-2">缺乏統一治理</div>
-  <div class="text-xs text-white/60 leading-relaxed">
+<div v-click="3" class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 flex flex-col">
+  <div class="text-2xl mb-2">🛡️</div>
+  <div class="text-base font-semibold text-white mb-1">缺乏統一治理</div>
+  <div class="text-[11px] text-white/60 leading-relaxed">
     誰在什麼時候呼叫了哪個工具？LLM 亂下指令怎麼辦？
   </div>
-  <div class="mt-auto pt-4 border-t border-slate-800 text-[10px] text-red-400">
+  <div class="mt-auto pt-3 border-t border-slate-800 text-[9px] text-red-400">
     → 「Agent 把客戶資料全刪了，我查不到是誰幹的。」
   </div>
 </div>
 
 </div>
 
-<div v-click="4" class="text-center mt-6 py-3 bg-red-500/10 border border-red-500/20 rounded">
-  <span class="text-sm text-white">企業需要一個 <span class="text-red-400 font-bold">Managed MCP Platform</span> —— 這就是 MCP Toolbox 出現的原因。</span>
+<div v-click="4" class="text-center mt-4 py-2 bg-red-500/10 border border-red-500/20 rounded">
+  <span class="text-xs text-white">企業需要一個 <span class="text-red-400 font-bold">Managed MCP Platform</span> —— 這就是 MCP Toolbox 出現的原因。</span>
 </div>
 
 </div>
