@@ -25,75 +25,74 @@ class: bg-slate-950 text-white
 transition: slide-left
 ---
 
-<div class="h-full flex flex-col py-4 px-8 text-center">
+<div class="h-full flex flex-col py-2 px-8 text-center">
 
-<div class="mb-4">
-<div class="text-xs uppercase tracking-[0.4em] text-blue-400 mb-2">The Fragmentation Problem</div>
+<div class="mb-2">
+<div class="text-xs uppercase tracking-[0.4em] text-blue-400 mb-1">The Fragmentation Problem</div>
 <h2 class="text-2xl font-light text-white !my-0">碎片化的「整合地獄」</h2>
-<div class="text-sm text-white/50 mt-2 italic">在 MCP 出現之前，整合資料是一場災難</div>
+<div class="text-sm text-white/50 mt-1 italic">在 MCP 出現之前，整合資料是一場災難</div>
 </div>
 
 <div class="flex-1 flex flex-col items-center justify-center">
 
 <!-- NxM Complexity Visualization -->
-<div class="relative w-full max-w-2xl aspect-[21/9] flex items-center justify-between px-12">
-  
+<div class="relative w-full max-w-xl aspect-[21/9] flex items-center justify-between px-12">
+
   <!-- Models -->
-  <div class="flex flex-col gap-4">
-    <div class="w-24 h-10 bg-blue-500/20 border border-blue-400/60 rounded flex items-center justify-center text-[10px] text-white">Gemini</div>
-    <div class="w-24 h-10 bg-slate-800 border border-slate-700 rounded flex items-center justify-center text-[10px] text-white/60">Claude</div>
-    <div class="w-24 h-10 bg-slate-800 border border-slate-700 rounded flex items-center justify-center text-[10px] text-white/60">OpenAI</div>
+  <div class="flex flex-col gap-3">
+    <div class="w-20 h-8 bg-blue-500/20 border border-blue-400/60 rounded flex items-center justify-center text-[9px] text-white">Gemini</div>
+    <div class="w-20 h-8 bg-slate-800 border border-slate-700 rounded flex items-center justify-center text-[9px] text-white/60">Claude</div>
+    <div class="w-20 h-8 bg-slate-800 border border-slate-700 rounded flex items-center justify-center text-[9px] text-white/60">OpenAI</div>
   </div>
 
   <!-- Chaos Lines -->
   <div class="absolute inset-0 flex items-center justify-center">
-    <div v-click="1" class="w-48 h-32 relative">
+    <div v-click="1" class="w-40 h-24 relative">
       <svg class="w-full h-full opacity-40" viewBox="0 0 100 100">
         <path d="M0,20 L100,20 M0,20 L100,50 M0,20 L100,80" stroke="#60a5fa" stroke-width="0.5" fill="none" />
         <path d="M0,50 L100,20 M0,50 L100,50 M0,50 L100,80" stroke="#94a3b8" stroke-width="0.5" fill="none" />
         <path d="M0,80 L100,20 M0,80 L100,50 M0,80 L100,80" stroke="#94a3b8" stroke-width="0.5" fill="none" />
       </svg>
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-500/20 border border-red-500/50 text-red-400 text-[10px] px-2 py-1 rounded-full whitespace-nowrap">
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-500/20 border border-red-500/50 text-red-400 text-[9px] px-2 py-1 rounded-full whitespace-nowrap">
         碎片化的 N x M 重複開發
       </div>
     </div>
   </div>
 
   <!-- Data Sources -->
-  <div class="flex flex-col gap-4">
-    <div class="w-24 h-10 bg-orange-500/20 border border-orange-400/60 rounded flex items-center justify-center text-[10px] text-white">PostgreSQL</div>
-    <div class="w-24 h-10 bg-orange-500/20 border border-orange-400/60 rounded flex items-center justify-center text-[10px] text-white">Slack</div>
-    <div class="w-24 h-10 bg-orange-500/20 border border-orange-400/60 rounded flex items-center justify-center text-[10px] text-white">GitHub</div>
+  <div class="flex flex-col gap-3">
+    <div class="w-20 h-8 bg-orange-500/20 border border-orange-400/60 rounded flex items-center justify-center text-[9px] text-white">PostgreSQL</div>
+    <div class="w-20 h-8 bg-orange-500/20 border border-orange-400/60 rounded flex items-center justify-center text-[9px] text-white">Slack</div>
+    <div class="w-20 h-8 bg-orange-500/20 border border-orange-400/60 rounded flex items-center justify-center text-[9px] text-white">GitHub</div>
   </div>
 
 </div>
 
-<div v-click="2" class="grid grid-cols-3 gap-6 mt-8">
-  <div class="p-3 bg-slate-900/60 border border-slate-700 rounded-lg">
-    <div class="text-xl mb-1">🛠️</div>
+<div v-click="2" class="grid grid-cols-3 gap-4 mt-4">
+  <div class="p-2 bg-slate-900/60 border border-slate-700 rounded-lg">
+    <div class="text-lg mb-1">🛠️</div>
     <div class="text-xs font-semibold text-white">重複造輪子</div>
-    <div class="text-[10px] text-white/50">每個模型都要寫一套自己的 Slack Connector</div>
+    <div class="text-[9px] text-white/50">每個模型都要寫一套自己的 Slack Connector</div>
   </div>
-  <div class="p-3 bg-slate-900/60 border border-slate-700 rounded-lg">
-    <div class="text-xl mb-1">🔒</div>
+  <div class="p-2 bg-slate-900/60 border border-slate-700 rounded-lg">
+    <div class="text-lg mb-1">🔒</div>
     <div class="text-xs font-semibold text-white">治理與安全</div>
-    <div class="text-[10px] text-white/50">權限散落在各處，難以統一稽核</div>
+    <div class="text-[9px] text-white/50">權限散落在各處，難以統一稽核</div>
   </div>
-  <div class="p-3 bg-slate-900/60 border border-slate-700 rounded-lg">
-    <div class="text-xl mb-1">📉</div>
+  <div class="p-2 bg-slate-900/60 border border-slate-700 rounded-lg">
+    <div class="text-lg mb-1">📉</div>
     <div class="text-xs font-semibold text-white">維護成本高</div>
-    <div class="text-[10px] text-white/50">API 一改，所有 Agent 都要跟著動</div>
+    <div class="text-[9px] text-white/50">API 一改，所有 Agent 都要跟著動</div>
   </div>
 </div>
 
 </div>
 
-<div v-click="3" class="mt-4 text-xs text-blue-300 font-semibold uppercase tracking-wider">
+<div v-click="3" class="mt-2 text-[10px] text-blue-300 font-semibold uppercase tracking-wider">
 We need a standard.
 </div>
 
 </div>
-
 <!--
 講者備註：
 - 這張講「痛點」：以前要接資料庫，Google 寫一套、OpenAI 寫一套、Anthropic 寫一套

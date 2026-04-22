@@ -5,7 +5,7 @@
   "scripts": {
     "build": "slidev build --base /nkust-ai-agent/",
     "dev": "slidev --open",
-    "export": "slidev export"
+    "export": "slidev export --dark"
   },
   "dependencies": {
     "@slidev/cli": "^52.14.2",
