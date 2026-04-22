@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main  # 或是您目前的開發分支名稱
+      - Keynote  # 或是您目前的開發分支名稱
 
 permissions:
   contents: write
