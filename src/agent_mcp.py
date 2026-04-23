@@ -1,0 +1,95 @@
+import os
+import requests
+import datetime
+from dotenv import load_dotenv
+from src.factory import UnifiedAgent
+from src.calendar_utils import real_google_calendar_create_event
+
+# 載入 .env
+load_dotenv()
+
+# --- Discord 工具 ---
+
+def discord_send_message(content: str):
+    """
+    發送訊息到 Discord 頻道。
+    
+    Args:
+        content: 要發送的訊息內容。
+    """
+    webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
+    if not webhook_url:
+        print(f"📡 [模擬模式] Discord 訊息內容: {content}")
+        return "⚠️ 未設定 Webhook URL，已進入模擬模式。"
+    
+    try:
+        payload = {"content": content}
+        response = requests.post(webhook_url, json=payload)
+        if response.status_code == 204:
+            return "✅ Discord 訊息發送成功！"
+        else:
+            return f"❌ Discord 發送失敗: {response.status_code}"
+    except Exception as e:
+        return f"❌ Discord 連線錯誤: {str(e)}"
+
+# --- 本地工具 ---
+
+def get_room_status():
+    """查詢辦公室所有會議室的狀態。"""
+    try:
+        response = requests.get("http://localhost:8000/rooms")
+        return response.json() if response.status_code == 200 else "無法查詢"
+    except:
+        return "本地系統連線失敗"
+
+def book_room_local(room_id: str, user_name: str, meeting_name: str):
+    """預約本機會議室看板上的房間。"""
+    try:
+        payload = {"room_id": room_id, "user_name": user_name, "meeting_name": meeting_name}
+        response = requests.post("http://localhost:8000/book", json=payload)
+        return response.json().get("message", "預約失敗")
+    except:
+        return "本地看板連線失敗"
+
+# --- 整合所有工具 ---
+tools = [
+    get_room_status, 
+    book_room_local, 
+    real_google_calendar_create_event, # 使用真實的日曆工具
+    discord_send_message
+]
+
+def run_mcp_agent():
+    agent_factory = UnifiedAgent()
+    
+    current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+    system_instruction = (
+        f"你是一位高效率的企業行政助手。你的任務是實現跨系統流程的自動化處理。\n"
+        f"今天的日期是 {current_date}。\n\n"
+        "【核心規則】\n"
+        "1. 當使用者要求預約時，如果資訊包含『通知』或『Discord』，請在預約成功後立刻執行 Discord 通知，不要詢問是否要通知。\n"
+        "2. 當完成會議室預約後，請『務必』主動幫使用者在 Google Calendar 建立活動，並在 Discord 通知中附上日曆活動的結果。\n"
+        "3. 如果指令中沒給姓名或會議名稱，請主動詢問。\n"
+        "4. **【重要】執行完所有工具後，請務必提供一個完整的執行成果匯報，清楚列出：會議室預約狀態、Google 日曆建立結果（包含連結）、以及 Discord 通知發送狀態。**"
+    )
+    
+    chat = agent_factory.create_chat(system_instruction, tools)
+
+    print("\n--- 🤖 NKUST Unified Enterprise Agent (Google + Discord) ---")
+    print("提示：第一次執行日曆功能會彈出瀏覽器授權。")
+    
+    while True:
+        user_input = input("\n🎮 指令: ")
+        if user_input.lower() in ["exit", "quit"]: break
+        
+        try:
+            response = chat.send_message(user_input)
+            if hasattr(response, 'text'):
+                print(f"\n🤖 Agent:\n{response.text}")
+            elif isinstance(response, dict):
+                print(f"\n🤖 Agent:\n{response['content']}")
+        except Exception as e:
+            print(f"發生錯誤: {str(e)}")
+
+if __name__ == "__main__":
+    run_mcp_agent()
