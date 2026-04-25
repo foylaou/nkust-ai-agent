@@ -26,15 +26,44 @@ class UnifiedAgent:
     def create_chat(self, system_instruction, tools):
         """建立聊天會話"""
         if self.mode == "gemini":
-            return self.client.chats.create(
+            chat = self.client.chats.create(
                 model=self.model,
                 config=types.GenerateContentConfig(
                     tools=tools,
                     system_instruction=system_instruction
                 )
             )
+            return GeminiChatWrapper(chat)
         else:
             return OllamaChatWrapper(self.model, system_instruction, tools)
+
+class GeminiChatWrapper:
+    """將 Gemini Chat 包裝成 generator 介面，與 OllamaChatWrapper 相容"""
+    def __init__(self, chat):
+        self.chat = chat
+
+    def send_message(self, user_input):
+        try:
+            response = self.chat.send_message(user_input)
+
+            # 若有 function call 記錄，輸出工具日誌
+            try:
+                for candidate in response.candidates or []:
+                    for part in candidate.content.parts or []:
+                        if hasattr(part, 'function_call') and part.function_call:
+                            fc = part.function_call
+                            log = f"🛠️ [Gemini] 調用工具: {fc.name}({dict(fc.args)})"
+                            yield {"type": "log", "content": log}
+            except Exception:
+                pass
+
+            text = response.text if hasattr(response, 'text') else str(response)
+            if text:
+                yield {"type": "delta", "content": text}
+            yield {"type": "final", "content": ""}
+        except Exception as e:
+            yield {"type": "error", "content": str(e)}
+
 
 class OllamaChatWrapper:
     """模擬 Gemini Chat 介面的 Ollama 包裝器"""
