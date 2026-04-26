@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Check, Copy } from 'lucide-react'
 import type { Message, Phase } from '../types'
 
 const PHASES: { value: Phase; label: string }[] = [
@@ -161,11 +164,35 @@ export default function ChatBox({ phase, onPhaseChange }: Props) {
   )
 }
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      title="複製"
+      className="mt-1 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+    >
+      {copied
+        ? <><Check size={12} /><span>已複製</span></>
+        : <><Copy size={12} /><span>複製</span></>
+      }
+    </button>
+  )
+}
+
 function ChatMessage({ msg }: { msg: Message }) {
   if (msg.role === 'user') {
     return (
-      <div className="self-end max-w-[80%] bg-blue-600 text-white px-4 py-2 rounded-2xl rounded-br-sm text-sm whitespace-pre-wrap">
-        {msg.content}
+      <div className="self-end flex flex-col items-end">
+        <div className="max-w-[80%] bg-blue-600 text-white px-4 py-2 rounded-2xl rounded-br-sm text-sm whitespace-pre-wrap">
+          {msg.content}
+        </div>
+        <CopyButton text={msg.content} />
       </div>
     )
   }
@@ -177,8 +204,11 @@ function ChatMessage({ msg }: { msg: Message }) {
     )
   }
   return (
-    <div className="self-start max-w-[80%] bg-gray-200 text-gray-800 px-4 py-2 rounded-2xl rounded-bl-sm text-sm whitespace-pre-wrap">
-      {msg.content}
+    <div className="self-start flex flex-col items-start">
+      <div className="max-w-[80%] bg-gray-200 text-gray-800 px-4 py-2 rounded-2xl rounded-bl-sm text-sm prose prose-sm max-w-none prose-pre:bg-gray-800 prose-pre:text-gray-100 prose-code:text-blue-700 prose-code:bg-blue-50 prose-code:px-1 prose-code:rounded">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+      </div>
+      <CopyButton text={msg.content} />
     </div>
   )
 }
