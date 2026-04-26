@@ -39,13 +39,26 @@ def check_server():
 def start_dashboard():
     """在背景啟動 Dashboard"""
     print("\n📦 正在啟動會議室看板服務 (Dashboard)...")
-    # 使用 subprocess 在背景啟動
-    subprocess.Popen([sys.executable, "src/server.py"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    time.sleep(2) # 等待啟動
-    if check_server():
-        print("✅ 看板服務已就緒：http://localhost:8000/")
-    else:
-        print("❌ 啟動失敗，請手動檢查 src/server.py 是否有錯誤。")
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8000"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
+
+    # 輪詢等待，最多 10 秒
+    for i in range(10):
+        time.sleep(1)
+        if check_server():
+            print("✅ 看板服務已就緒：http://localhost:8000/")
+            return
+        # 若 process 已提早結束，印出錯誤
+        if proc.poll() is not None:
+            err = proc.stderr.read().decode(errors="ignore")
+            print(f"❌ 啟動失敗：\n{err}")
+            return
+        print(f"   等待中... ({i+1}/10)")
+
+    print("❌ 啟動逾時，請手動執行：uvicorn src.server:app --port 8000")
 
 def main():
     print_banner()

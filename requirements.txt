@@ -6,7 +6,7 @@ uvicorn
 google-genai
 google-adk
 ollama
-
+openai
 # --- Google Calendar API ---
 google-auth-oauthlib
 google-api-python-client
