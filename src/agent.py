@@ -43,9 +43,15 @@ def book_room(room_id: str, user_name: str, meeting_name: str):
 
 def run_agent_chat():
     agent_factory = UnifiedAgent()
-    
     tools = [get_room_status, book_room]
-    system_instruction = "你是一位行政助手。請協助預約會議室，如果缺少姓名或會議名稱，請主動詢問。"
+    if agent_factory.mode == "gemini":
+        from google.adk.tools import google_search
+        tools.append(google_search)
+    elif agent_factory.mode == "ollama":
+        from src.factory import ollama_web_search
+        tools.append(ollama_web_search)
+
+    system_instruction = "你是一位行政助手。請協助預約會議室，如果缺少姓名或會議名稱，請主動詢問。如使用者有最新問題想詢問可以調用search工具"
     
     chat = agent_factory.create_chat(system_instruction, tools)
 

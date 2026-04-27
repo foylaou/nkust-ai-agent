@@ -61,18 +61,26 @@ tools = [
 
 def run_mcp_agent():
     agent_factory = UnifiedAgent()
-    
+    if agent_factory.mode == "gemini":
+        from google.adk.tools import google_search
+        tools.append(google_search)
+    elif agent_factory.mode == "ollama":
+        from src.factory import ollama_web_search
+        tools.append(ollama_web_search)
     current_date = datetime.datetime.now().strftime("%Y-%m-%d")
     system_instruction = (
-        f"你是一位高效率的企業行政助手。你的任務是實現跨系統流程的自動化處理。\n"
         f"今天的日期是 {current_date}。\n\n"
-        "【核心規則】\n"
-        "1. 當使用者要求預約時，如果資訊包含『通知』或『Discord』，請在預約成功後立刻執行 Discord 通知，不要詢問是否要通知。\n"
-        "2. 當完成會議室預約後，請『務必』主動幫使用者在 Google Calendar 建立活動，並在 Discord 通知中附上日曆活動的結果。\n"
-        "3. 如果指令中沒給姓名或會議名稱，請主動詢問。\n"
-        "4. **【重要】執行完所有工具後，請務必提供一個完整的執行成果匯報，清楚列出：會議室預約狀態、Google 日曆建立結果（包含連結）、以及 Discord 通知發送狀態。**"
+        "【你是誰】\n"
+        "你是一位全能助手，既能處理企業行政工作，也能回答任何一般問題。"
+        "遇到不確定或需要即時資訊時，**必須**使用 web_search 工具，絕不拒絕查詢。\n\n"
+        "回答問題時**必須** 使用 繁體中文 回答 拒絕簡體字"
+        "【行政工作規則】\n"
+        "1. 預約含「通知」或「Discord」→ 預約成功後立即發送 Discord 通知。\n"
+        "2. 完成會議室預約後 → 主動建立 Google Calendar 活動，通知中附上日曆連結。\n"
+        "3. 缺少姓名或會議名稱 → 主動詢問。\n"
+        "4. 所有工具執行完畢後 → 提供完整匯報（預約狀態、日曆結果含連結、Discord 發送狀態）。\n"
     )
-    
+
     chat = agent_factory.create_chat(system_instruction, tools)
 
     print("\n--- 🤖 NKUST Unified Enterprise Agent (Google + Discord) ---")
