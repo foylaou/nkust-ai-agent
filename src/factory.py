@@ -2,12 +2,31 @@ import os
 import json
 import inspect
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
-import ollama
-from openai import OpenAI
 
 load_dotenv()
+
+
+def ollama_web_search(query: str) -> str:
+    """搜尋網路上的最新資訊，回傳相關網頁的標題、網址與摘要"""
+    import requests
+    api_key = os.getenv("OLLAMA_WEB_SEARCH_API_KEY", "")
+    try:
+        resp = requests.post(
+            "https://ollama.com/api/web_search",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"query": query, "max_results": 5},
+            timeout=15
+        )
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+        if not results:
+            return "未找到相關結果"
+        lines = []
+        for r in results:
+            lines.append(f"標題: {r.get('title', '')}\nURL: {r.get('url', '')}\n摘要: {r.get('content', '')}\n")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"搜尋失敗: {e}"
 
 class UnifiedAgent:
     """統一介面的 Agent，支援 Gemini、Ollama 與 OpenAI"""
@@ -17,13 +36,12 @@ class UnifiedAgent:
 
         if self.mode == "gemini":
             self.model = env_model or "gemini-2.0-flash"
-            self.client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
             print(f"✨ 目前模式：Gemini Online ({self.model})")
 
         elif self.mode == "openai":
             self.model = env_model or "gpt-4o-mini"
             self.openai_api_key = os.getenv("OPENAI_API_KEY")
-            self.openai_base_url = os.getenv("OPENAI_BASE_URL")  # 可選，用於相容 API
+            self.openai_base_url = os.getenv("OPENAI_BASE_URL")
             print(f"🤖 目前模式：OpenAI ({self.model})")
 
         else:  # ollama
@@ -34,24 +52,88 @@ class UnifiedAgent:
 
     def create_chat(self, system_instruction, tools):
         """建立聊天會話"""
+        from datetime import date
+        dated_instruction = f"今天是 {date.today().strftime('%Y年%m月%d日')}。\n\n{system_instruction}"
+
         if self.mode == "gemini":
-            chat = self.client.chats.create(
-                model=self.model,
-                config=types.GenerateContentConfig(
-                    tools=tools,
-                    system_instruction=system_instruction
-                )
-            )
-            return GeminiChatWrapper(chat)
+            return GeminiADKWrapper(self.model, dated_instruction, tools)
 
         elif self.mode == "openai":
-            return OpenAIChatWrapper(self.model, system_instruction, tools,
+            return OpenAIChatWrapper(self.model, dated_instruction, tools,
                                      api_key=self.openai_api_key,
                                      base_url=self.openai_base_url)
 
         else:  # ollama
-            return OllamaChatWrapper(self.model, system_instruction, tools,
+            return OllamaChatWrapper(self.model, dated_instruction, tools,
                                      host=self.ollama_url, api_key=self.ollama_api_key)
+
+
+class GeminiADKWrapper:
+    """使用 Google ADK Agent + Runner 的 Gemini wrapper，支援 ADK 工具如 google_search"""
+    def __init__(self, model, system_instruction, tools):
+        from google.adk.agents import Agent
+        from google.adk.runners import Runner
+        from google.adk.sessions import InMemorySessionService
+        import asyncio
+
+        self._loop = asyncio.new_event_loop()
+        self.agent = Agent(
+            name="unified_agent",
+            model=model,
+            instruction=system_instruction,
+            tools=tools
+        )
+        self._app_name = "unified_agent"
+        self._user_id = "user"
+        self._session_id = "session_001"
+        self.session_service = InMemorySessionService()
+        self._loop.run_until_complete(
+            self.session_service.create_session(
+                app_name=self._app_name,
+                user_id=self._user_id,
+                session_id=self._session_id
+            )
+        )
+        from google.adk.runners import Runner as _Runner
+        self.runner = _Runner(
+            agent=self.agent,
+            app_name=self._app_name,
+            session_service=self.session_service
+        )
+
+    def send_message(self, user_input):
+        from google.genai import types
+
+        async def _collect():
+            content = types.Content(role='user', parts=[types.Part(text=user_input)])
+            events = self.runner.run_async(
+                user_id=self._user_id,
+                session_id=self._session_id,
+                new_message=content
+            )
+            chunks = []
+            async for event in events:
+                if not event.is_final_response():
+                    try:
+                        for part in (event.content.parts or []):
+                            if hasattr(part, 'function_call') and part.function_call:
+                                fc = part.function_call
+                                log = f"🛠️ [ADK] 調用工具: {fc.name}({dict(fc.args)})"
+                                chunks.append({"type": "log", "content": log})
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        text = event.content.parts[0].text
+                        if text:
+                            chunks.append({"type": "delta", "content": text})
+                    except Exception:
+                        pass
+            chunks.append({"type": "final", "content": ""})
+            return chunks
+
+        for chunk in self._loop.run_until_complete(_collect()):
+            yield chunk
 
 
 class GeminiChatWrapper:
@@ -87,7 +169,8 @@ class OpenAIChatWrapper:
         self.model = model
         self.messages = [{'role': 'system', 'content': system_instruction}]
         self.tools = self._convert_tools(tools)
-        self.tool_map = {f.__name__: f for f in tools}
+        self.tool_map = {f.__name__: f for f in tools if inspect.isfunction(f)}
+        from openai import OpenAI
         kwargs = {'api_key': api_key}
         if base_url:
             kwargs['base_url'] = base_url
@@ -97,6 +180,8 @@ class OpenAIChatWrapper:
     def _convert_tools(functions):
         openai_tools = []
         for f in functions:
+            if not inspect.isfunction(f):
+                continue
             sig = inspect.signature(f)
             params = {
                 'type': 'object',
@@ -185,7 +270,8 @@ class OllamaChatWrapper:
         self.model = model
         self.messages = [{'role': 'system', 'content': system_instruction}]
         self.tools = self._convert_tools(tools)
-        self.tool_map = {f.__name__: f for f in tools}
+        self.tool_map = {f.__name__: f for f in tools if inspect.isfunction(f)}
+        import ollama
         headers = {'Authorization': f'Bearer {api_key}'} if api_key else {}
         self.client = ollama.Client(host=host or "http://localhost:11434", headers=headers)
 
@@ -193,6 +279,8 @@ class OllamaChatWrapper:
     def _convert_tools(functions):
         ollama_tools = []
         for f in functions:
+            if not inspect.isfunction(f):
+                continue
             sig = inspect.signature(f)
             params = {
                 'type': 'object',
@@ -250,7 +338,7 @@ class OllamaChatWrapper:
             else:
                 # 3. 最終回覆：使用串流模式達到「打字機」效果
                 content = response.get('message', {}).get('content', "").strip()
-
+                print(content)
                 if not content:
                     self.messages.append({'role': 'user', 'content': "請彙整以上執行結果並回報給我。"})
 
@@ -266,3 +354,32 @@ class OllamaChatWrapper:
                 self.messages.append({'role': 'assistant', 'content': full_content})
                 yield {"type": "final", "content": ""}
                 return
+
+
+if __name__ == '__main__':
+    agent_factory = UnifiedAgent()
+
+    if agent_factory.mode == "gemini":
+        from google.adk.tools import google_search
+        tools = [google_search]
+    elif agent_factory.mode == "ollama":
+        tools = [ollama_web_search]
+    else:
+        tools = []
+
+    chat = agent_factory.create_chat("你是一位行政助手，請使用繁體中文跟我對話", tools)
+    while True:
+        user_input = input("\n👤 您: ")
+        if user_input.lower() in ["exit", "quit"]: break
+        try:
+            print("🤖 Agent: ", end="", flush=True)
+            for chunk in chat.send_message(user_input):
+                if chunk["type"] == "delta":
+                    print(chunk["content"], end="", flush=True)
+                elif chunk["type"] == "log":
+                    print(f"\n  {chunk['content']}", flush=True)
+                elif chunk["type"] == "error":
+                    print(f"\n系統錯誤: {chunk['content']}", flush=True)
+            print()
+        except Exception as e:
+            print(f"系統錯誤: {str(e)}")

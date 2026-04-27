@@ -61,9 +61,21 @@ def book_room_local(room_id: str, user_name: str, meeting_name: str, attendees: 
 agent_factory = UnifiedAgent()
 current_date = datetime.datetime.now().strftime("%Y-%m-%d")
 
+# 根據模式動態選擇搜尋工具
+if agent_factory.mode == "gemini":
+    from google.adk.tools import google_search as _web_search_tool
+elif agent_factory.mode == "ollama":
+    from src.factory import ollama_web_search as _web_search_tool
+else:
+    _web_search_tool = None
+
+_phase2_tools = [get_room_status, book_room_local, real_google_calendar_create_event, discord_send_message]
+if _web_search_tool:
+    _phase2_tools.append(_web_search_tool)
+
 PHASE_CONFIGS = {
-    "1": { 
-        "tools": [get_room_status, book_room_local], 
+    "1": {
+        "tools": [get_room_status, book_room_local],
         "instruction": (
             "你是一位基礎行政助手。\n"
             "【選房規則】\n"
@@ -73,11 +85,14 @@ PHASE_CONFIGS = {
             "4. 缺少姓名或會議名稱時才主動詢問，人數已知則直接選房。"
         )
     },
-    "2": { 
-        "tools": [get_room_status, book_room_local, real_google_calendar_create_event, discord_send_message], 
+    "2": {
+        "tools": _phase2_tools,
         "instruction": (
-            f"你是一位高效率的企業行政助手。今天的日期是 {current_date}。\n"
-            "【核心規則】\n"
+            f"今天的日期是 {current_date}。\n\n"
+            "【你是誰】\n"
+            "你是一位全能助手，既能處理企業行政工作，也能回答任何一般問題。"
+            "遇到不確定或需要即時資訊的問題（包含音樂、時事、人物等），**必須**立刻使用搜尋工具查詢，絕不拒絕。\n\n"
+            "【行政工作規則】\n"
             "1. 若使用者未指定房間，請先執行 get_room_status 尋找容量『大於等於』與會人數的最小空閒房間，直接執行預約，不要詢問使用者要哪一間。\n"
             "2. 預約成功後，請『務必』主動調用 real_google_calendar_create_event 建立日曆活動。\n"
             "3. 如果指令包含『通知』，請立刻執行 discord_send_message，不要詢問是否要通知。\n"
