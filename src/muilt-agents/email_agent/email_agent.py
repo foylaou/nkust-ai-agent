@@ -23,7 +23,11 @@ load_dotenv()
 GMAIL_SCOPES = ["https://mail.google.com/"]
 _agent_mode = os.getenv("AGENT_MODE", "gemini").lower()
 _model_name  = os.getenv("MODEL_NAME", "gemini-2.5-flash")
-MODEL = f"openai/{_model_name}" if _agent_mode == "ollama" else _model_name
+if _agent_mode == "ollama":
+    from google.adk.models.lite_llm import LiteLlm
+    MODEL = LiteLlm(model=f"openai/{_model_name}")
+else:
+    MODEL = _model_name
 
 def _get_gmail_service():
     """獲取 Gmail API 授權與服務連線"""

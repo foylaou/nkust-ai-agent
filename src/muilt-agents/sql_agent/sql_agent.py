@@ -16,7 +16,11 @@ load_dotenv()
 
 _agent_mode = os.getenv("AGENT_MODE", "gemini").lower()
 _model_name  = os.getenv("MODEL_NAME", "gemini-2.5-flash")
-MODEL = f"openai/{_model_name}" if _agent_mode == "ollama" else _model_name
+if _agent_mode == "ollama":
+    from google.adk.models.lite_llm import LiteLlm
+    MODEL = LiteLlm(model=f"openai/{_model_name}")
+else:
+    MODEL = _model_name
 
 SYSTEM_INSTRUCTION = (
     "你是專門處理「石化業安全督導（Petrochemical Audits）」與「KPI 績效管理」的專業數據分析助理。 "

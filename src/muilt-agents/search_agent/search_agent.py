@@ -8,19 +8,12 @@ load_dotenv()
 
 _agent_mode = os.getenv("AGENT_MODE", "gemini").lower()
 _model_name  = os.getenv("MODEL_NAME", "gemini-2.5-flash")
-MODEL = f"openai/{_model_name}" if _agent_mode == "ollama" else _model_name
 
-# ==========================================
-# 依模式選擇搜尋工具
-# - gemini：使用 ADK 內建的 google_search（僅支援 Gemini 線上模型）
-# - ollama：使用自定義的 ollama_web_search
-# ==========================================
-
-if _agent_mode == "Ollama":
-    MODEL = f"openai/{_model_name}"
-    # ollama_tools.py 位於 src/lib/，從這裡往上兩層再進 lib/
+if _agent_mode == "ollama":
+    from google.adk.models.lite_llm import LiteLlm
+    MODEL = LiteLlm(model=f"openai/{_model_name}")
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "lib"))
-    from lib.ollama_tools import ollama_web_search
+    from ollama_tools import ollama_web_search
     search_tool = ollama_web_search
 else:
     MODEL = _model_name

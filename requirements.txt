@@ -18,3 +18,7 @@ requests
 pydantic
 pytz
 protobuf
+
+# --- Extra Memory ---
+psycopg2-binary
+redis

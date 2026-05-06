@@ -21,7 +21,11 @@ load_dotenv()
 SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 _agent_mode = os.getenv("AGENT_MODE", "gemini").lower()
 _model_name  = os.getenv("MODEL_NAME", "gemini-2.5-flash")
-MODEL = f"openai/{_model_name}" if _agent_mode == "ollama" else _model_name
+if _agent_mode == "ollama":
+    from google.adk.models.lite_llm import LiteLlm
+    MODEL = LiteLlm(model=f"openai/{_model_name}")
+else:
+    MODEL = _model_name
 
 def _get_calendar_service():
     creds = None

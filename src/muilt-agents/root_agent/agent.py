@@ -1,10 +1,52 @@
 import importlib.util
 import os
+import sys
+
 from dotenv import load_dotenv
 from google.adk.agents import Agent
+from google.adk.sessions import InMemorySessionService
+from google.adk.tools.preload_memory_tool import PreloadMemoryTool
+from google.adk.tools.tool_context import ToolContext
+from google.adk.models.llm_request import LlmRequest
+import logging as _logging
+
+_mem_log = _logging.getLogger("memory_debug")
+
+class DebugPreloadMemoryTool(PreloadMemoryTool):
+    """PreloadMemoryTool with debug logging."""
+
+    async def process_llm_request(
+        self,
+        *,
+        tool_context: ToolContext,
+        llm_request: LlmRequest,
+    ) -> None:
+        user_content = tool_context.user_content
+        query = (user_content.parts[0].text
+                 if user_content and user_content.parts else "(none)")
+        _mem_log.warning(f"[PreloadMemory] 🔍 搜尋 query: {query[:60]}")
+        try:
+            response = await tool_context.search_memory(query)
+            _mem_log.warning(f"[PreloadMemory] 結果數: {len(response.memories)}")
+            for m in response.memories:
+                txt = " ".join(p.text for p in (m.content.parts or []) if p.text)
+                _mem_log.warning(f"[PreloadMemory]   → {txt[:80]}")
+        except Exception as e:
+            _mem_log.warning(f"[PreloadMemory] ❌ search_memory 失敗: {e}")
+            return
+        # 仍然呼叫原本邏輯
+        await super().process_llm_request(
+            tool_context=tool_context, llm_request=llm_request
+        )
+from google.adk.agents.callback_context import CallbackContext
 
 load_dotenv()
-
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "lib"))
+from UnifiedMemoryService import UnifiedMemoryService
+# ==========================================
+# Memory Service 初始化（全域，給 Runner 用）
+# ==========================================
+memory_service = UnifiedMemoryService()
 # ==========================================
 # 模型 / LiteLLM 設定（須在載入子 Agent 前完成）
 # ==========================================
@@ -55,6 +97,29 @@ _email  = _load("email_agent_mod",  "email_agent/email_agent.py")
 _sql  = _load("sql_agent_mod",  "sql_agent/sql_agent.py")
 
 # ==========================================
+# after_agent_callback：每輪結束自動存入 memory
+# ==========================================
+
+async def _auto_save_memory(callback_context: CallbackContext):
+    """每次 agent 回應結束後，將本輪 session 存入 memory service。"""
+    import logging
+    _log = logging.getLogger(__name__)
+    try:
+        _log.warning("[memory] ⏳ 嘗試 add_session_to_memory...")
+        await callback_context.add_session_to_memory()
+        _log.warning("[memory] ✅ add_session_to_memory 成功")
+        # 印出 session 資訊供 debug
+        session = callback_context.session
+        _log.warning(f"[memory] app={session.app_name} user={session.user_id} session={session.id}")
+        for ev in session.events:
+            if ev.content and ev.content.parts:
+                texts = [p.text for p in ev.content.parts if p.text]
+                if texts:
+                    _log.warning(f"[memory]   event author={ev.author}: {' '.join(texts)[:80]}")
+    except Exception as e:
+        _log.warning(f"[memory] ❌ add_session_to_memory 失敗: {e}")
+
+# ==========================================
 # Root Agent（管理員）
 # ==========================================
 
@@ -97,6 +162,8 @@ root_agent = Agent(
         _email.email_agent,
         _sql.sql_agent
     ],
+    tools=[DebugPreloadMemoryTool()],
+    after_agent_callback=_auto_save_memory,
 )
 
 # # ==========================================
