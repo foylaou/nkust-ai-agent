@@ -15,18 +15,23 @@ else:
 
 
 def get_room_status():
-    """查詢辦公室所有會議室的即時狀態，回傳名稱、容量與預約情況。"""
+    """查詢辦公室所有會議室的即時狀態，回傳名稱、容量與各時段預約情況（含時間、人數）。"""
     try:
         response = requests.get("http://localhost:8080/rooms", timeout=5)
         if response.status_code == 200:
             rooms = response.json()
             lines = ["目前會議室狀態："]
             for r in rooms:
-                if r["status"] == "Booked":
-                    status = f"已被 {r['booked_by']} 預約（會議：{r['meeting_name']}）"
+                lines.append(f"  - {r['name']} ({r['id']})：容納 {r['capacity']} 人")
+                bookings = r.get("bookings") or []
+                if bookings:
+                    for b in bookings:
+                        lines.append(
+                            f"      🔴 {b['start_time']}~{b['end_time']}｜"
+                            f"{b['user_name']}｜{b['meeting_name']}｜與會 {b['attendees']} 人"
+                        )
                 else:
-                    status = "空閒中"
-                lines.append(f"  - {r['name']} ({r['id']}): 容納 {r['capacity']} 人，{status}")
+                    lines.append("      🟢 目前無預約")
             return "\n".join(lines)
         return "無法取得會議室資訊，請稍後再試。"
     except Exception as e:

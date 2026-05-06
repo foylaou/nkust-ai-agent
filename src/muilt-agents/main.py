@@ -17,11 +17,12 @@ import argparse
 import subprocess
 from pathlib import Path
 
+
 def main():
     parser = argparse.ArgumentParser(description="NKUST Multi-Agent Web Server")
-    parser.add_argument("--debug",   action="store_true", help="開啟 memory debug log")
-    parser.add_argument("--port",    type=int, default=8000, help="指定 port（預設 8000）")
-    parser.add_argument("--backend", choices=["inmemory", "postgres", "redis"], help="覆蓋 MEMORY_BACKEND")
+    parser.add_argument("--debug", action="store_true", help="開啟 memory debug log")
+    parser.add_argument("--port", type=int, default=8000, help="指定 port（預設 8000）")
+    parser.add_argument("--backend", choices=["sqlite", "inmemory", "postgres", "redis"], help="覆蓋 MEMORY_BACKEND")
     args = parser.parse_args()
 
     # main.py 在 src/muilt-agents/，執行目錄切到 src/
@@ -35,7 +36,7 @@ def main():
         os.environ["MEMORY_BACKEND"] = args.backend
 
     debug_mode = os.environ.get("DEBUG_MODE", "0")
-    backend    = os.environ.get("MEMORY_BACKEND", "inmemory")
+    backend = os.environ.get("MEMORY_BACKEND", "sqlite")
 
     print("🚀 啟動 NKUST Multi-Agent")
     print(f"   DEBUG_MODE     = {debug_mode}")
@@ -57,6 +58,7 @@ def main():
     except subprocess.CalledProcessError as e:
         print(f"❌ 啟動失敗: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

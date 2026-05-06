@@ -1,7 +1,8 @@
 """
 UnifiedMemoryService
-支援三種後端，透過 .env MEMORY_BACKEND 控制：
-  - inmemory  : ADK 內建 InMemoryMemoryService
+支援四種後端，透過 .env MEMORY_BACKEND 控制：
+  - sqlite    : 自訂 SqliteMemoryService   (Python 內建 sqlite3，零安裝、檔案持久化，預設)
+  - inmemory  : ADK 內建 InMemoryMemoryService (重啟後資料消失)
   - postgres  : 自訂 PostgresMemoryService (需要 pgvector / pg_trgm)
   - redis     : 自訂 RedisMemoryService    (需要 RediSearch module)
 """
@@ -11,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -19,6 +21,33 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# 共用的中英文關鍵字比對 helper
+# 英文用詞級比對，中文用字元級比對（修正 ADK 原生 \w+ 拆詞遇全中文會拆出空 set）
+# ---------------------------------------------------------------------------
+
+def _extract_cjk_chars(text: str) -> set[str]:
+    """拆出所有 CJK 字元（單字）。"""
+    return set(re.findall(r'[一-鿿㐀-䶿]', text))
+
+
+def _extract_ascii_words(text: str) -> set[str]:
+    """拆出英文單詞（小寫）。"""
+    return set(re.findall(r'[a-zA-Z0-9]+', text.lower()))
+
+
+def _cjk_ascii_match(query: str, text: str) -> bool:
+    """query 與 text 是否有共同的中文字或英文詞。"""
+    query_cjk = _extract_cjk_chars(query)
+    query_ascii = _extract_ascii_words(query)
+    text_cjk = _extract_cjk_chars(text)
+    text_ascii = _extract_ascii_words(text)
+
+    cjk_match = bool(query_cjk and query_cjk & text_cjk)
+    ascii_match = bool(query_ascii and query_ascii & text_ascii)
+    return cjk_match or ascii_match
 
 # ---------------------------------------------------------------------------
 # ADK imports
@@ -52,8 +81,6 @@ class CJKInMemoryMemoryService(InMemoryMemoryService):
         user_id: str,
         query: str,
     ) -> SearchMemoryResponse:
-        import re, threading
-
         def _extract_cjk_chars(text: str) -> set[str]:
             """拆出所有 CJK 字元（單字）。"""
             return set(re.findall(r'[\u4e00-\u9fff\u3400-\u4dbf]', text))
@@ -99,6 +126,145 @@ class CJKInMemoryMemoryService(InMemoryMemoryService):
                     )
 
         return SearchMemoryResponse(memories=memories)
+
+# ===========================================================================
+# 0.5 SQLite Memory Service（預設後端，Python 內建 sqlite3，零安裝）
+# ===========================================================================
+
+def _default_sqlite_path() -> str:
+    """共用 app.db 路徑：src/data/app.db（可用 SQLITE_DB_PATH 覆蓋）。"""
+    env_path = os.environ.get("SQLITE_DB_PATH")
+    if env_path:
+        return env_path
+    # __file__ = .../src/lib/UnifiedMemoryService.py → src/data/app.db
+    src_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(src_dir, "data", "app.db")
+
+
+class SqliteMemoryService(BaseMemoryService):
+    """
+    自訂 MemoryService，後端為 SQLite（Python 內建 sqlite3）。
+
+    特性：
+      - 零安裝、檔案持久化，重啟後對話記憶仍在。
+      - 搜尋採用與 CJKInMemory 相同的中英文比對（避免 SQLite FTS5 中文斷詞問題）。
+
+    資料表 adk_memories 與其他後端結構對齊。
+    """
+
+    _CREATE_TABLE = """
+        CREATE TABLE IF NOT EXISTS adk_memories (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            app_name    TEXT    NOT NULL,
+            user_id     TEXT    NOT NULL,
+            session_id  TEXT    NOT NULL,
+            author      TEXT,
+            content     TEXT    NOT NULL,
+            created_at  TEXT    NOT NULL
+        );
+    """
+    _CREATE_INDEX = """
+        CREATE INDEX IF NOT EXISTS idx_adk_memories_lookup
+            ON adk_memories (app_name, user_id);
+    """
+
+    def __init__(self) -> None:
+        import sqlite3
+        self._sqlite3 = sqlite3
+        self._db_path = _default_sqlite_path()
+        os.makedirs(os.path.dirname(self._db_path), exist_ok=True)
+        self._setup()
+        logger.info(f"[SqliteMemoryService] ✅ 使用 SQLite 檔案: {self._db_path}")
+
+    def _get_conn(self):
+        conn = self._sqlite3.connect(self._db_path, check_same_thread=False)
+        conn.row_factory = self._sqlite3.Row
+        return conn
+
+    def _setup(self) -> None:
+        conn = self._get_conn()
+        try:
+            with conn:
+                conn.execute(self._CREATE_TABLE)
+                conn.execute(self._CREATE_INDEX)
+        finally:
+            conn.close()
+
+    async def add_session_to_memory(self, session: Session) -> None:
+        conn = self._get_conn()
+        try:
+            with conn:
+                for event in session.events or []:
+                    if event.content is None:
+                        continue
+                    content_json = json.dumps(
+                        type(event.content).to_dict(event.content)
+                        if hasattr(type(event.content), "to_dict")
+                        else {"parts": [{"text": p.text} for p in (event.content.parts or []) if p.text]},
+                        ensure_ascii=False,
+                    )
+                    conn.execute(
+                        """
+                        INSERT INTO adk_memories
+                            (app_name, user_id, session_id, author, content, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            session.app_name,
+                            session.user_id,
+                            session.id,
+                            event.author,
+                            content_json,
+                            datetime.now(timezone.utc).isoformat(),
+                        ),
+                    )
+        finally:
+            conn.close()
+
+    async def search_memory(
+        self,
+        *,
+        app_name: str,
+        user_id: str,
+        query: str,
+    ) -> SearchMemoryResponse:
+        conn = self._get_conn()
+        try:
+            rows = conn.execute(
+                """
+                SELECT author, content, created_at
+                FROM   adk_memories
+                WHERE  app_name = ? AND user_id = ?
+                ORDER BY id DESC
+                """,
+                (app_name, user_id),
+            ).fetchall()
+        finally:
+            conn.close()
+
+        memories: list[MemoryEntry] = []
+        for row in rows:
+            content_dict = json.loads(row["content"])
+            parts_data = content_dict.get("parts", [])
+            text_joined = " ".join(p["text"] for p in parts_data if p.get("text"))
+            if not text_joined:
+                continue
+            if not _cjk_ascii_match(query, text_joined):
+                continue
+            parts = [
+                genai_types.Part(text=p["text"])
+                for p in parts_data
+                if p.get("text")
+            ]
+            memories.append(
+                MemoryEntry(
+                    content=genai_types.Content(parts=parts),
+                    author=row["author"],
+                    timestamp=row["created_at"],
+                )
+            )
+        return SearchMemoryResponse(memories=memories)
+
 
 # ===========================================================================
 # 1. PostgreSQL Memory Service
@@ -455,7 +621,8 @@ class RedisMemoryService(BaseMemoryService):
 class UnifiedMemoryService:
     """
     根據環境變數 MEMORY_BACKEND 選擇後端：
-      inmemory  → ADK InMemoryMemoryService  (預設)
+      sqlite    → SqliteMemoryService        (預設，零安裝、檔案持久化)
+      inmemory  → ADK InMemoryMemoryService  (重啟後資料消失)
       postgres  → PostgresMemoryService
       redis     → RedisMemoryService
 
@@ -464,10 +631,10 @@ class UnifiedMemoryService:
         runner  = Runner(..., memory_service=service.backend)
     """
 
-    SUPPORTED_BACKENDS = ("inmemory", "postgres", "redis")
+    SUPPORTED_BACKENDS = ("sqlite", "inmemory", "postgres", "redis")
 
     def __init__(self) -> None:
-        backend_name = os.environ.get("MEMORY_BACKEND", "inmemory").lower().strip()
+        backend_name = os.environ.get("MEMORY_BACKEND", "sqlite").lower().strip()
 
         if backend_name not in self.SUPPORTED_BACKENDS:
             raise ValueError(
@@ -477,8 +644,12 @@ class UnifiedMemoryService:
 
         logger.info(f"[UnifiedMemoryService] 使用後端: {backend_name}")
 
-        if backend_name == "inmemory":
-            self._backend: BaseMemoryService = CJKInMemoryMemoryService()
+        if backend_name == "sqlite":
+            self._backend: BaseMemoryService = SqliteMemoryService()
+            logger.info("[UnifiedMemoryService] ✅ SqliteMemoryService 已就緒（零安裝、檔案持久化，重啟後仍記得）")
+
+        elif backend_name == "inmemory":
+            self._backend = CJKInMemoryMemoryService()
             logger.info("[UnifiedMemoryService] ✅ CJKInMemoryMemoryService 已就緒（支援中文，重啟後資料消失）")
 
         elif backend_name == "postgres":

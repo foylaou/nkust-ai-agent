@@ -29,23 +29,29 @@ export default function RoomBoard() {
 }
 
 function RoomCard({ room }: { room: Room }) {
-  const isBooked = room.status === 'Booked'
+  const bookings = room.bookings ?? []
+  const isBooked = bookings.length > 0
   return (
-    <div className={`w-44 rounded-xl border p-4 text-center border-t-4 ${
+    <div className={`w-52 rounded-xl border p-4 border-t-4 ${
       isBooked
         ? 'border-t-red-400 bg-red-50'
         : 'border-t-green-400 bg-green-50'
     }`}>
-      <p className="font-bold text-sm">{room.name}</p>
-      <p className="text-xs text-gray-400 mt-1">{room.id}</p>
-      <p className="text-xs text-gray-500">容納 {room.capacity} 人</p>
+      <p className="font-bold text-sm text-center">{room.name}</p>
+      <p className="text-xs text-gray-400 mt-1 text-center">{room.id}</p>
+      <p className="text-xs text-gray-500 text-center">容納 {room.capacity} 人</p>
       {isBooked ? (
-        <div className="mt-2 text-red-500 text-sm">
-          <p className="font-semibold">🔴 {room.booked_by}</p>
-          {room.meeting_name && <p className="text-xs text-red-400 mt-0.5">{room.meeting_name}</p>}
+        <div className="mt-2 space-y-1.5 text-left">
+          {bookings.map(b => (
+            <div key={b.id} className="text-xs bg-white/70 rounded p-1.5 border border-red-100">
+              <p className="font-semibold text-red-500">🔴 {b.start_time}~{b.end_time}</p>
+              <p className="text-gray-600">{b.user_name}・與會 {b.attendees} 人</p>
+              <p className="text-red-400">{b.meeting_name}</p>
+            </div>
+          ))}
         </div>
       ) : (
-        <p className="mt-2 font-semibold text-sm text-green-600">🟢 空閒中</p>
+        <p className="mt-2 font-semibold text-sm text-green-600 text-center">🟢 目前無預約</p>
       )}
     </div>
   )
