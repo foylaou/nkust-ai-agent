@@ -7,8 +7,9 @@ import os
 import requests
 import json
 import asyncio
-from src.factory import UnifiedAgent
-from src.calendar_utils import real_google_calendar_create_event
+
+from lib.UnifiedAgent import UnifiedAgent
+from lib.calendar_utils import real_google_calendar_create_event
 
 app = FastAPI(title="NKUST AI Agent Streaming Suite")
 
@@ -65,7 +66,7 @@ current_date = datetime.datetime.now().strftime("%Y-%m-%d")
 if agent_factory.mode == "gemini":
     from google.adk.tools import google_search as _web_search_tool
 elif agent_factory.mode == "ollama":
-    from src.factory import ollama_web_search as _web_search_tool
+    _web_search_tool = None
 else:
     _web_search_tool = None
 
@@ -99,8 +100,8 @@ PHASE_CONFIGS = {
             "4. 最後請提供一個完整的執行成果匯報，包含預約狀態、日曆連結與通知結果。"
         )
     },
-    "3": { 
-        "tools": [get_room_status, book_room_local, discord_send_message], 
+    "3": {
+        "tools": [get_room_status, book_room_local, discord_send_message],
         "instruction": (
             "你現在是一個團隊的領導者 (Manager)。你的團隊有三個成員：\n"
             "1. Searcher: 負責調用 get_room_status 查資料。\n"
@@ -124,8 +125,18 @@ class ChatRequest(BaseModel):
     message: str
     phase: str
 
+class BookRequest(BaseModel):
+    room_id: str
+    user_name: str
+    meeting_name: str
+
 @app.get("/rooms")
 async def get_rooms(): return rooms_db
+
+@app.post("/book")
+async def book_room_endpoint(request: BookRequest):
+    message = book_room_local(request.room_id, request.user_name, request.meeting_name)
+    return {"message": message}
 
 @app.post("/reset")
 async def reset_db():
@@ -157,4 +168,4 @@ if os.path.isdir(_dist):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)

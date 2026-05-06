@@ -7,3 +7,7 @@ components.d.ts
 .idea
 key/
 token.json
+*_token.json
+.env
+dist
+*.db
