@@ -138,8 +138,8 @@ transition: slide-left
     檢查請求是否包含敏感詞、PII 資料，或超出權限的指令。
   </div>
   <div class="text-[8px] font-mono text-emerald-300/60 bg-emerald-500/5 p-1.5 rounded">
-    @callbacks.on_user_request<br/>
-    def mask_pii(request): ...
+    def mask_pii(cb, req, ctx): ...<br/>
+    LlmAgent(..., before_model_callback=mask_pii)
   </div>
 </div>
 
@@ -149,8 +149,8 @@ transition: slide-left
     當 Agent 決定呼叫敏感工具時，攔截並記錄審計日誌。
   </div>
   <div class="text-[8px] font-mono text-orange-300/60 bg-orange-500/5 p-1.5 rounded">
-    @callbacks.on_tool_call<br/>
-    def verify_permission(tool_call): ...
+    def verify_permission(tool, args, ctx): ...<br/>
+    LlmAgent(..., before_tool_callback=verify_permission)
   </div>
 </div>
 
@@ -160,8 +160,8 @@ transition: slide-left
     確保回覆內容不包含機密資訊，或進行最終格式修正。
   </div>
   <div class="text-[8px] font-mono text-blue-300/60 bg-blue-500/5 p-1.5 rounded">
-    @callbacks.on_agent_response<br/>
-    def filter_hallucination(response): ...
+    def filter_output(cb, resp, ctx): ...<br/>
+    LlmAgent(..., after_model_callback=filter_output)
   </div>
 </div>
 
