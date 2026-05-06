@@ -153,15 +153,22 @@ agent = Agent(
 
 ```python
 # 3. 升級：加入 MCP 工具
-from google.adk.mcp import McpTool
+from google.adk.tools.mcp_tool import (
+    MCPToolset, StreamableHTTPConnectionParams)
 
-slack_tool = McpTool(
-    url="https://toolbox.internal/slack"
-)
+MCP_URL = "https://mcp-toolbox.isafe.org.tw/mcp"
 
-agent = Agent(
+agent = LlmAgent(
     model="gemini-2.0-flash",
-    tools=[get_room_status, slack_tool]
+    tools=[
+        get_room_status,
+        MCPToolset(connection_params=
+            StreamableHTTPConnectionParams(
+                url=MCP_URL,
+                headers={"Authorization":
+                    "Bearer <TOKEN>"}
+            )),
+    ]
 )
 ```
 ````
@@ -171,46 +178,51 @@ agent = Agent(
 <div v-click="1" class="bg-slate-900 border border-slate-700 rounded-xl p-4 flex flex-col font-mono text-[10px] overflow-hidden">
 
 <div class="text-blue-400 border-b border-slate-800 pb-2 mb-2 flex justify-between items-center">
-  <span>AGENT TRACE</span>
+  <span>AGENT TRACE · sql_agent</span>
   <span class="opacity-50 text-[8px]">ADK MONITOR v1.0</span>
 </div>
 
-<div class="space-y-3">
+<div class="space-y-2">
 
 <div class="flex gap-2 items-start">
-  <span class="text-white/40 shrink-0">09:00:01</span>
+  <span class="text-white/40 shrink-0">10:02:01</span>
   <span class="text-purple-400 shrink-0">[USER]</span>
-  <span class="text-white/80">"幫我查明天 14:00 的會議室"</span>
+  <span class="text-white/80">"中油去年督導改善完成率如何？"</span>
 </div>
 
 <div v-click="2" class="flex gap-2 bg-blue-500/10 p-1.5 rounded border-l-2 border-blue-400 items-start">
-  <span class="text-white/40 shrink-0">09:00:02</span>
+  <span class="text-white/40 shrink-0">10:02:02</span>
   <span class="text-blue-400 shrink-0">[THOUGHT]</span>
-  <span class="text-blue-200">用戶詢問會議室狀況，應呼叫 get_room_status。</span>
+  <span class="text-blue-200">查詢改善完成率 → 呼叫 get-improvement-progress</span>
 </div>
 
 <div v-click="3" class="flex gap-2 items-start">
-  <span class="text-white/40 shrink-0">09:00:03</span>
+  <span class="text-white/40 shrink-0">10:02:03</span>
   <span class="text-orange-400 shrink-0">[CALL]</span>
-  <span class="text-white/80">get_room_status(time="明天 14:00")</span>
+  <span class="text-white/80 text-[9px]">get-improvement-progress(org_name="中油")</span>
 </div>
 
 <div v-click="4" class="flex gap-2 items-start">
-  <span class="text-white/40 shrink-0">09:00:04</span>
-  <span class="text-emerald-400 shrink-0">[RESULT]</span>
-  <span class="text-white/60">"明天 14:00 會議室目前為空閒狀態"</span>
+  <span class="text-white/40 shrink-0">10:02:04</span>
+  <span class="text-emerald-400 shrink-0">[MCP]</span>
+  <span class="text-white/60 text-[9px]">→ petrochemical-db · 回傳 1 筆</span>
+</div>
+
+<div v-click="4" class="flex gap-2 items-start pl-4">
+  <span class="text-white/30 shrink-0 text-[8px]">RESULT</span>
+  <span class="text-emerald-300 text-[9px]">TotalAudits:42 CompletionRate:78.57%</span>
 </div>
 
 <div v-click="5" class="flex gap-2 items-start">
-  <span class="text-white/40 shrink-0">09:00:05</span>
+  <span class="text-white/40 shrink-0">10:02:05</span>
   <span class="text-purple-400 shrink-0">[AGENT]</span>
-  <span class="text-white/80">"查好了！明天下午兩點會議室是有空的喔。"</span>
+  <span class="text-white/80 text-[9px]">"中油共督導 42 件，改善完成率 78.6%。"</span>
 </div>
 
 </div>
 
 <div class="mt-auto pt-2 border-t border-slate-800 text-blue-400/50 italic text-[8px]">
-  -- Process Finished --
+  MCP Toolbox → petrochemical-db (MSSQL)
 </div>
 
 </div>
@@ -329,67 +341,139 @@ transition: slide-left
 
 <div class="text-center mb-6">
 
-<div class="text-xs uppercase tracking-[0.4em] text-purple-400 mb-2">Phase 03 · Advanced Multi-Agent</div>
+<div class="text-xs uppercase tracking-[0.4em] text-purple-400 mb-2">Phase 03 · Multi-Agent Team</div>
 
-<h2 class="text-2xl font-light text-white !my-0">群策群力：多 Agent 流程</h2>
+<h2 class="text-2xl font-light text-white !my-0">Manager + 六位專員：實際跑起來的架構</h2>
 
-<div class="text-sm text-white/50 mt-1 italic">當一個大腦應付不來時，我們需要一個「團隊」</div>
-
-</div>
-
-<div class="flex-1 flex flex-col items-center justify-center relative">
-
-<!-- Flow Visualization -->
-<div class="flex items-center gap-4 w-full max-w-3xl">
-
-<!-- Agent 1 -->
-<div v-click="1" class="flex-1 bg-slate-900 border border-blue-500/50 rounded-xl p-4 text-center z-10">
-  <div class="text-2xl mb-2">🕵️</div>
-  <div class="text-xs font-bold text-white mb-1">Searcher</div>
-  <div class="text-[9px] text-blue-300 font-mono">負責查詢會議室</div>
-</div>
-
-<!-- Arrow -->
-<div v-click="2" class="text-white/20 text-xl font-bold animate-pulse">➔</div>
-
-<!-- Agent 2 -->
-<div v-click="2" class="flex-1 bg-slate-900 border border-purple-500/50 rounded-xl p-4 text-center z-10">
-  <div class="text-2xl mb-2">📅</div>
-  <div class="text-xs font-bold text-white mb-1">Booker</div>
-  <div class="text-[9px] text-purple-300 font-mono">負責發起日曆預約</div>
-</div>
-
-<!-- Arrow -->
-<div v-click="3" class="text-white/20 text-xl font-bold animate-pulse">➔</div>
-
-<!-- Agent 3 -->
-<div v-click="3" class="flex-1 bg-slate-900 border border-emerald-500/50 rounded-xl p-4 text-center z-10">
-  <div class="text-2xl mb-2">📢</div>
-  <div class="text-xs font-bold text-white mb-1">Notifier</div>
-  <div class="text-[9px] text-emerald-300 font-mono">負責發送 Slack 通知</div>
-</div>
+<div class="text-sm text-white/50 mt-1 italic">root_agent 判斷意圖 · 動態委派給對應的 sub-agent</div>
 
 </div>
 
-<!-- State Container -->
-<div v-click="4" class="mt-10 w-full max-w-md bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+<div class="flex-1 grid grid-cols-5 gap-4 min-h-0">
 
-<div class="flex justify-between items-center mb-2">
-  <span class="text-[9px] uppercase tracking-widest text-white/40 font-bold">Shared Session State</span>
-  <span class="text-[8px] font-mono text-emerald-400 bg-emerald-500/10 px-1 rounded">Persistent</span>
+<!-- 左：架構圖 -->
+<div class="col-span-2 flex flex-col items-center justify-center gap-2">
+
+<!-- root_agent -->
+<div v-click="1" class="w-full bg-gradient-to-r from-blue-900/70 to-indigo-900/70 border-2 border-blue-400 rounded-xl px-4 py-2.5 text-center shadow-lg shadow-blue-500/20">
+<div class="text-[9px] uppercase tracking-widest text-blue-300">Manager · Gemini</div>
+<div class="text-base font-bold text-white">root_agent</div>
 </div>
 
-<div class="space-y-1 font-mono text-[9px] text-white/60">
-  <div class="flex justify-between"><span>room_id:</span> <span class="text-blue-300">"Meeting-Room-A"</span></div>
-  <div class="flex justify-between"><span>status:</span> <span class="text-blue-300">"Available"</span></div>
-  <div v-click="2" class="flex justify-between border-t border-slate-700 pt-1"><span>event_url:</span> <span class="text-purple-300">"https://g-cal/evt/..."</span></div>
-  <div v-click="3" class="flex justify-between border-t border-slate-700 pt-1"><span>slack_ts:</span> <span class="text-emerald-300">"172345.002"</span></div>
+<div v-click="2" class="text-blue-400/50 text-lg">↓ transfer_to_agent</div>
+
+<!-- sub-agents grid -->
+<div v-click="2" class="grid grid-cols-2 gap-1.5 w-full">
+<div class="bg-emerald-500/15 border border-emerald-400/50 rounded-lg p-2 text-center">
+<div class="text-base">🏢</div>
+<div class="text-[10px] font-semibold text-emerald-300">room_agent</div>
+<div class="text-[9px] text-white/50">查詢會議室</div>
+</div>
+<div class="bg-orange-500/15 border border-orange-400/50 rounded-lg p-2 text-center">
+<div class="text-base">📖</div>
+<div class="text-[10px] font-semibold text-orange-300">book_agent</div>
+<div class="text-[9px] text-white/50">執行預約</div>
+</div>
+<div class="bg-purple-500/15 border border-purple-400/50 rounded-lg p-2 text-center">
+<div class="text-base">🔍</div>
+<div class="text-[10px] font-semibold text-purple-300">search_agent</div>
+<div class="text-[9px] text-white/50">網路搜尋</div>
+</div>
+<div class="bg-cyan-500/15 border border-cyan-400/50 rounded-lg p-2 text-center">
+<div class="text-base">🔔</div>
+<div class="text-[10px] font-semibold text-cyan-300">alert_agent</div>
+<div class="text-[9px] text-white/50">行事曆 + Discord</div>
+</div>
+<div class="bg-rose-500/15 border border-rose-400/50 rounded-lg p-2 text-center">
+<div class="text-base">📧</div>
+<div class="text-[10px] font-semibold text-rose-300">email_agent</div>
+<div class="text-[9px] text-white/50">Gmail API</div>
+</div>
+<div class="bg-yellow-500/15 border border-yellow-400/50 rounded-lg p-2 text-center">
+<div class="text-base">🗃️</div>
+<div class="text-[10px] font-semibold text-yellow-300">sql_agent</div>
+<div class="text-[9px] text-white/50">資料庫 MCP</div>
+</div>
 </div>
 
 </div>
 
-<div v-click="5" class="absolute -bottom-2 text-xs text-white/40 italic">
-ADK 的 <span class="text-white">SequentialAgent</span> 自動幫你傳遞這些狀態
+<!-- 右：ADK Web UI trace 模擬 -->
+<div class="col-span-3 bg-slate-900 border border-slate-700 rounded-xl p-3 font-mono text-[10px] flex flex-col overflow-hidden">
+
+<div class="text-blue-400 border-b border-slate-800 pb-1.5 mb-2 flex justify-between items-center">
+<span>ADK WEB · AGENT TRACE</span>
+<span class="text-emerald-400 text-[9px] animate-pulse">● LIVE</span>
+</div>
+
+<div class="space-y-1.5 overflow-y-auto flex-1">
+
+<div v-click="1" class="flex gap-2 items-start">
+<span class="text-white/30 shrink-0">11:23:01</span>
+<span class="text-purple-300 shrink-0">[USER]</span>
+<span class="text-white/80">"幫我查有沒有空的會議室"</span>
+</div>
+
+<div v-click="2" class="flex gap-2 bg-blue-500/10 p-1.5 rounded border-l-2 border-blue-400 items-start">
+<span class="text-white/30 shrink-0">11:23:02</span>
+<span class="text-blue-300 shrink-0">[root_agent]</span>
+<span class="text-blue-200">→ transfer_to_agent: room_agent</span>
+</div>
+
+<div v-click="3" class="flex gap-2 items-start pl-4">
+<span class="text-white/30 shrink-0">11:23:03</span>
+<span class="text-emerald-300 shrink-0">[room_agent]</span>
+<span class="text-white/70">→ get_room_status()</span>
+</div>
+
+<div v-click="3" class="flex gap-2 items-start pl-4">
+<span class="text-white/30 shrink-0">11:23:04</span>
+<span class="text-emerald-300 shrink-0">[room_agent]</span>
+<span class="text-white/60 text-[9px]">A101 空閒 · B202 空閒 · C303 空閒</span>
+</div>
+
+<div v-click="4" class="flex gap-2 items-start">
+<span class="text-white/30 shrink-0">11:23:05</span>
+<span class="text-white/50 shrink-0">[USER]</span>
+<span class="text-white/80">"我是 Foy，5人，設計會議"</span>
+</div>
+
+<div v-click="4" class="flex gap-2 bg-blue-500/10 p-1.5 rounded border-l-2 border-blue-400 items-start">
+<span class="text-white/30 shrink-0">11:23:06</span>
+<span class="text-blue-300 shrink-0">[root_agent]</span>
+<span class="text-blue-200">→ transfer_to_agent: book_agent</span>
+</div>
+
+<div v-click="5" class="flex gap-2 items-start pl-4">
+<span class="text-white/30 shrink-0">11:23:07</span>
+<span class="text-orange-300 shrink-0">[book_agent]</span>
+<span class="text-white/70">→ book_room(A101, Foy, 設計會議)</span>
+</div>
+
+<div v-click="5" class="flex gap-2 items-start pl-4">
+<span class="text-white/30 shrink-0">11:23:08</span>
+<span class="text-orange-300 shrink-0">[book_agent]</span>
+<span class="text-emerald-400">✓ 成功預約 創意腦力室</span>
+</div>
+
+<div v-click="6" class="flex gap-2 bg-blue-500/10 p-1.5 rounded border-l-2 border-blue-400 items-start">
+<span class="text-white/30 shrink-0">11:23:09</span>
+<span class="text-blue-300 shrink-0">[root_agent]</span>
+<span class="text-blue-200">→ transfer_to_agent: alert_agent</span>
+</div>
+
+<div v-click="6" class="flex gap-2 items-start pl-4">
+<span class="text-white/30 shrink-0">11:23:10</span>
+<span class="text-cyan-300 shrink-0">[alert_agent]</span>
+<span class="text-white/70">→ create_calendar_event + discord_send</span>
+</div>
+
+</div>
+
+<div class="border-t border-slate-800 pt-1.5 mt-1.5 text-white/30 text-[9px] italic">
+-- ADK Web UI 可即時觀看這份 trace --
+</div>
+
 </div>
 
 </div>

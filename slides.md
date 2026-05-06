@@ -11,7 +11,7 @@ info: |
   ## 自動化工作流新範式
   利用 Agent Development Kit (ADK) 與 MCP Toolbox 構建企業級 AI 助手
 
-  NKUST 碩專電子一甲 · 劉名政
+  NKUST 碩專電子一甲 · 劉名政 · May 2026
 class: text-center
 drawings:
   persist: false
@@ -47,7 +47,7 @@ fonts:
   劉名政 · <span class="opacity-70">Liu Ming-Cheng</span>
 </div>
 <div class="text-white/60 text-sm mt-1">
-  國立高雄科技大學 · 碩專電子一甲 · April 2026
+  國立高雄科技大學 · 碩專電子一甲 · May 2026
 </div>
 
 </div>

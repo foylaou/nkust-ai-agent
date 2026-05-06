@@ -625,6 +625,113 @@ transition: slide-left
 -->
 
 ---
+layout: default
+class: bg-slate-950 text-white
+transition: slide-left
+---
+
+<div class="h-full flex flex-col py-3 px-8">
+
+<div class="text-center mb-4">
+<div class="text-xs uppercase tracking-[0.3em] text-blue-400 mb-1">Sub-Agent Delegation</div>
+<h2 class="text-2xl font-light text-white !my-0">第四種模式：Manager & Sub-Agents</h2>
+<div class="text-sm text-white/50 mt-1 italic">不只是流程排程 · 而是職責委派</div>
+</div>
+
+<div class="grid grid-cols-2 gap-6 flex-1 min-h-0">
+
+<!-- 左：架構圖 -->
+<div class="flex flex-col items-center justify-center">
+
+<!-- Manager -->
+<div v-click="1" class="w-64 bg-gradient-to-r from-blue-900/60 to-indigo-900/60 border-2 border-blue-400 rounded-xl px-5 py-3 text-center shadow-lg shadow-blue-500/20 mb-2">
+<div class="text-[10px] uppercase tracking-wider text-blue-300 mb-0.5">Manager · Gemini</div>
+<div class="text-lg font-bold text-white">root_agent</div>
+<div class="text-[11px] text-white/60 mt-0.5">接收任務 · 判斷 · 委派</div>
+</div>
+
+<!-- 分叉箭頭 -->
+<div v-click="2" class="flex items-start gap-4 pt-2">
+<div class="flex flex-col items-center">
+<div class="w-px h-4 bg-blue-400/40"></div>
+<div class="flex gap-12 relative">
+<div class="absolute top-0 left-1/4 right-1/4 h-px bg-blue-400/30"></div>
+<!-- sub agents -->
+<div class="flex flex-col gap-1.5 pt-1">
+<div class="bg-emerald-500/20 border border-emerald-400/60 rounded-lg px-3 py-1.5 text-center">
+<div class="text-[10px] font-semibold text-emerald-300">room_agent</div>
+<div class="text-[9px] text-white/50">查詢會議室</div>
+</div>
+<div class="bg-orange-500/20 border border-orange-400/60 rounded-lg px-3 py-1.5 text-center">
+<div class="text-[10px] font-semibold text-orange-300">book_agent</div>
+<div class="text-[9px] text-white/50">執行預約</div>
+</div>
+</div>
+<div class="flex flex-col gap-1.5 pt-1">
+<div class="bg-purple-500/20 border border-purple-400/60 rounded-lg px-3 py-1.5 text-center">
+<div class="text-[10px] font-semibold text-purple-300">search_agent</div>
+<div class="text-[9px] text-white/50">網路搜尋</div>
+</div>
+<div class="bg-cyan-500/20 border border-cyan-400/60 rounded-lg px-3 py-1.5 text-center">
+<div class="text-[10px] font-semibold text-cyan-300">alert_agent</div>
+<div class="text-[9px] text-white/50">行事曆 + Discord</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+</div>
+
+<!-- 右：程式碼 + 說明 -->
+<div class="flex flex-col gap-2 text-[11px] min-h-0">
+
+<div v-click="1" class="text-[10px]">
+
+```python {monaco-diff}
+root_agent = Agent(
+    name="root_agent",
+    model="gemini-2.0-flash",
+    instruction="你是行政管理員...",
+    sub_agents=[
+        room_agent, search_agent,
+        book_agent, alert_agent,
+    ],
+)
+```
+
+</div>
+
+<div v-click="3" class="px-2 py-1.5 bg-amber-500/10 border-l-2 border-amber-400 rounded-r">
+<div class="font-semibold text-amber-200 text-[11px]">與 SequentialAgent 的差別</div>
+<div class="text-[10px] text-white/70 leading-snug mt-0.5">
+Sequential = 死板順序 ／ sub_agents = <span class="text-white font-semibold">動態判斷</span>，Manager 決定叫誰、何時叫
+</div>
+</div>
+
+<div v-click="4" class="px-2 py-1.5 bg-emerald-500/10 border-l-2 border-emerald-400 rounded-r">
+<div class="font-semibold text-emerald-200 text-[11px]">各 Agent 模型可以不同</div>
+<div class="text-[10px] text-white/70 leading-snug mt-0.5">
+Manager 用 Gemini 精確路由，Sub-agents 用本地 Ollama 節省成本
+</div>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<!--
+講者備註：
+- 這是今天 Demo 用的實際架構
+- 重點：sub_agents 是「委派」不是「排程」——Manager 讀使用者意圖後決定轉給誰
+- ADK 內建 transfer_to_agent 工具，Manager 呼叫它就能把控制權移交給子 Agent
+- 混用模型是真實場景中的重要優化：強模型做 routing，弱模型做執行
+- 下一章 Demo 就是跑這個架構
+-->
+
+---
 layout: center
 class: bg-slate-950 text-white text-center
 transition: fade

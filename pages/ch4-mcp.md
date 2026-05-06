@@ -413,11 +413,14 @@ transition: slide-left
 
 </div>
 
-<div v-click="4" class="mt-12 max-w-2xl bg-slate-900/80 border border-slate-700 rounded-lg p-4">
-  <div class="text-xs font-mono text-emerald-400 mb-2"># ADK 程式碼片段：連接 MCP Toolbox</div>
-  <div class="text-[11px] text-white/80 font-mono leading-relaxed">
-    mcp_tool = McpTool(url="https://mcp-toolbox.enterprise.com/slack")<br/>
-    agent = Agent(..., tools=[mcp_tool])
+<div v-click="4" class="mt-4 max-w-2xl bg-slate-900/80 border border-slate-700 rounded-lg px-4 py-2.5">
+  <div class="text-[10px] font-mono text-emerald-400 mb-1.5"># ADK 連接 MCP Toolbox</div>
+  <div class="text-[10px] text-white/80 font-mono leading-snug">
+    <span class="text-blue-300">from</span> google.adk.tools.mcp_tool <span class="text-blue-300">import</span> MCPToolset, StreamableHTTPConnectionParams<br/>
+    agent = LlmAgent(..., tools=[MCPToolset(connection_params=StreamableHTTPConnectionParams(<br/>
+    &nbsp;&nbsp;url=<span class="text-amber-300">"https://mcp-toolbox.isafe.org.tw/mcp"</span>,<br/>
+    &nbsp;&nbsp;headers={<span class="text-amber-300">"Authorization"</span>: <span class="text-amber-300">"Bearer &lt;TOKEN&gt;"</span>}<br/>
+    ))])
   </div>
 </div>
 
