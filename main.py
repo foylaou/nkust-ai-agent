@@ -31,7 +31,7 @@ def stop_server():
 def check_server():
     """檢查 Dashboard 是否已啟動"""
     try:
-        requests.get("http://localhost:8000/", timeout=1)
+        requests.get("http://localhost:8080/", timeout=1)
         return True
     except:
         return False
@@ -49,7 +49,7 @@ def start_dashboard():
     for i in range(10):
         time.sleep(1)
         if check_server():
-            print("✅ 看板服務已就緒：http://localhost:8000/")
+            print("✅ 看板服務已就緒：http://localhost:8080/")
             return
         # 若 process 已提早結束，印出錯誤
         if proc.poll() is not None:
@@ -58,7 +58,7 @@ def start_dashboard():
             return
         print(f"   等待中... ({i+1}/10)")
 
-    print("❌ 啟動逾時，請手動執行：uvicorn src.server:app --port 8000")
+    print("❌ 啟動逾時，請手動執行：uvicorn src.server:app --port 8080")
 
 def main():
     print_banner()
@@ -71,7 +71,7 @@ def main():
         else:
             print("❌ 警告：未啟動看板服務，Agent 將無法調用本地預約工具。")
     else:
-        print("ℹ️  看板服務已在背景執行中 (http://localhost:8000/)。")
+        print("ℹ️  看板服務已在背景執行中 (http://localhost:8080/)。")
 
     # 2. 選擇 Demo 階段
     print("\n請選擇要執行的 Demo 階段：")

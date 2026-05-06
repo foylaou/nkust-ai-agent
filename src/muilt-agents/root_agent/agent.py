@@ -4,19 +4,28 @@ import sys
 import logging as _logging
 
 from dotenv import load_dotenv
+from google.adk.agents import Agent
+from google.adk.agents.callback_context import CallbackContext
 from google.adk.tools.preload_memory_tool import PreloadMemoryTool
 from google.adk.tools.tool_context import ToolContext
 from google.adk.models.llm_request import LlmRequest
 
 load_dotenv()
 
+# lib/ 加入 path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "lib"))
+from UnifiedMemoryService import UnifiedMemoryService
+
 # ==========================================
 # DEBUG_MODE 控制 memory log 顯示
-# .env 設 DEBUG_MODE=1 才顯示，否則靜音
 # ==========================================
 _DEBUG = os.getenv("DEBUG_MODE", "0").strip() == "1"
 _mem_log = _logging.getLogger("memory_debug")
 _mem_log.setLevel(_logging.DEBUG if _DEBUG else _logging.WARNING)
+
+# ==========================================
+# DebugPreloadMemoryTool
+# ==========================================
 
 class DebugPreloadMemoryTool(PreloadMemoryTool):
     """PreloadMemoryTool with debug logging."""
@@ -28,8 +37,10 @@ class DebugPreloadMemoryTool(PreloadMemoryTool):
         llm_request: LlmRequest,
     ) -> None:
         user_content = tool_context.user_content
-        query = (user_content.parts[0].text
-                 if user_content and user_content.parts else "(none)")
+        query = (
+            user_content.parts[0].text
+            if user_content and user_content.parts else "(none)"
+        )
         _mem_log.debug(f"[PreloadMemory] 🔍 搜尋 query: {query[:60]}")
         try:
             response = await tool_context.search_memory(query)
@@ -40,24 +51,18 @@ class DebugPreloadMemoryTool(PreloadMemoryTool):
         except Exception as e:
             _mem_log.debug(f"[PreloadMemory] ❌ search_memory 失敗: {e}")
             return
-        # 仍然呼叫原本邏輯
         await super().process_llm_request(
             tool_context=tool_context, llm_request=llm_request
         )
-from google.adk.agents.callback_context import CallbackContext
 
-load_dotenv()
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "lib"))
-
-from UnifiedMemoryService import UnifiedMemoryService
 # ==========================================
-# Memory Service 初始化（全域，給 Runner 用）
+# Memory Service 初始化
 # ==========================================
 memory_service = UnifiedMemoryService()
-# ==========================================
-# 模型 / LiteLLM 設定（須在載入子 Agent 前完成）
-# ==========================================
 
+# ==========================================
+# 模型設定
+# ==========================================
 _agent_mode = os.getenv("AGENT_MODE", "gemini").lower()
 _model_name  = os.getenv("MODEL_NAME", "gemini-2.5-flash")
 
@@ -67,12 +72,10 @@ if _agent_mode == "ollama":
 
     _ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
     _api_key    = os.getenv("OLLAMA_API_KEY", "")
-    _root_name  = os.getenv("ROOT_MODEL", "gemma4:31b")   # 大模型做 routing
-    _sub_name   = _model_name                              # MODEL_NAME 給 sub-agents
+    _root_name  = os.getenv("ROOT_MODEL", "gemma4:31b")
+    _sub_name   = _model_name
 
-    # 改走 openai/ 路由，繞過 LiteLLM ollama_chat.py 的 tool message 轉換 bug
-    # Issue: github.com/BerriAI/litellm/issues/26094
-    os.environ["OPENAI_API_BASE"] = f"{_ollama_url}/v1"  # 結尾必須有 /v1
+    os.environ["OPENAI_API_BASE"] = f"{_ollama_url}/v1"
     os.environ["OPENAI_API_KEY"]  = _api_key or "ollama"
     litellm.aclient_session = httpx.AsyncClient(verify=False)
 
@@ -83,32 +86,29 @@ else:
     SUB_MODEL  = _model_name
 
 # ==========================================
-# 載入子 Agent（各自的工具與邏輯定義在獨立檔案中）
+# 載入子 Agent
 # ==========================================
 
 def _load(module_name: str, rel_path: str):
-    """從含連字號的相對路徑載入子 Agent 模組。"""
     base = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(base, "..", rel_path)  # root_agent/ → muilt-agents/
+    path = os.path.join(base, "..", rel_path)
     spec = importlib.util.spec_from_file_location(module_name, path)
     mod  = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
 
-
-_room   = _load("room_agent_mod",   "room_agent/room_agent.py")
-_search = _load("search_agent_mod", "search_agent/search_agent.py")
-_book   = _load("book_agent_mod",   "book_agent/book_agent.py")
-_alert  = _load("alert_agent_mod",  "aleart_agent/aleart_agent.py")
-_email  = _load("email_agent_mod",  "email_agent/email_agent.py")
-_sql  = _load("sql_agent_mod",  "sql_agent/sql_agent.py")
+_room      = _load("room_agent_mod",   "room_agent/room_agent.py")
+_search    = _load("search_agent_mod", "search_agent/search_agent.py")
+_book      = _load("book_agent_mod",   "book_agent/book_agent.py")
+_alert     = _load("alert_agent_mod",  "aleart_agent/aleart_agent.py")
+_email     = _load("email_agent_mod",  "email_agent/email_agent.py")
+_sql       = _load("sql_agent_mod",    "sql_agent/sql_agent.py")
 
 # ==========================================
 # after_agent_callback：每輪結束自動存入 memory
 # ==========================================
 
 async def _auto_save_memory(callback_context: CallbackContext):
-    """每次 agent 回應結束後，將本輪 session 存入 memory service。"""
     try:
         await callback_context.add_session_to_memory()
         if _DEBUG:
@@ -120,10 +120,10 @@ async def _auto_save_memory(callback_context: CallbackContext):
                     if texts:
                         _mem_log.debug(f"[memory]   {ev.author}: {' '.join(texts)[:80]}")
     except Exception as e:
-        _mem_log.warning(f"[memory]  add_session_to_memory 失敗: {e}")
+        _mem_log.warning(f"[memory] ❌ add_session_to_memory 失敗: {e}")
 
 # ==========================================
-# Root Agent（管理員）
+# Root Agent
 # ==========================================
 
 SYSTEM_INSTRUCTION = (
@@ -132,9 +132,8 @@ SYSTEM_INSTRUCTION = (
     "  - search_agent（搜尋專員）：搜尋網路上的最新資訊\n"
     "  - book_agent（預約專員）：執行會議室預約\n"
     "  - alert_agent（通知專員）：新增修改刪除查詢 Google 行事曆 + 發送 Discord 通知\n\n"
-    "  - email_agent（電子郵件專員）：發送郵件、查詢未讀、標記已讀 Gmail \n\n"
-    "  - sql_agent（專業數據分析助理）：石化業安全督導（Petrochemical Audits）」與「KPI 績效管理」的專業數據分析 \n\n"
-    "  - mediasage_agent (圖書電影評價助理)：一位專業且品味出眾的圖書、電影與影集評價及推薦專家\n\n"
+    "  - email_agent（電子郵件專員）：發送郵件、查詢未讀、標記已讀 Gmail\n\n"
+    "  - sql_agent（專業數據分析助理）：石化業安全督導（Petrochemical Audits）與 KPI 績效管理的專業數據分析\n\n"
     "【預約三步驟，必須依序實際執行，不得跳過或模擬】\n"
     "  步驟 1：轉派 room_agent 查詢空閒會議室\n"
     "  步驟 2：確認 room_id、user_name、meeting_name 三項資訊後，\n"
@@ -169,67 +168,3 @@ root_agent = Agent(
     tools=[DebugPreloadMemoryTool()],
     after_agent_callback=_auto_save_memory,
 )
-
-# # ==========================================
-# # CLI 模式（python root_agent/agent.py）
-# # ==========================================
-#
-# if __name__ == "__main__":
-#     import asyncio
-#     from google.adk.agents.run_config import RunConfig
-#     from google.adk.runners import Runner
-#     from google.adk.sessions import InMemorySessionService
-#     from google.genai import types
-#
-#     APP_NAME, USER_ID, SESSION = "nkust_multi_agent", "user", "session_001"
-#     # 每輪最多 10 次 LLM 呼叫，防止 sub-agent 陷入無限迴圈
-#     RUN_CONFIG = RunConfig(max_llm_calls=10)
-#
-#     async def main():
-#         session_service = InMemorySessionService()
-#         await session_service.create_session(
-#             app_name=APP_NAME, user_id=USER_ID, session_id=SESSION
-#         )
-#         runner = Runner(agent=root_agent, app_name=APP_NAME, session_service=session_service)
-#
-#         print("\n╔══════════════════════════════════════════════╗")
-#         print("║  👥 NKUST Multi-Agent Team (ADK)             ║")
-#         print("║  Manager → Room / Search / Book / Notifier  ║")
-#         print("╚══════════════════════════════════════════════╝")
-#         print("輸入 'exit' 或 'quit' 離開\n")
-#
-#         while True:
-#             user_input = input("👑 指令：").strip()
-#             if not user_input:
-#                 continue
-#             if user_input.lower() in ("exit", "quit"):
-#                 print("已離開。")
-#                 break
-#
-#             content = types.Content(role="user", parts=[types.Part(text=user_input)])
-#             async for event in runner.run_async(
-#                 user_id=USER_ID, session_id=SESSION, new_message=content,
-#                 run_config=RUN_CONFIG,
-#             ):
-#                 if not event.is_final_response():
-#                     try:
-#                         author = getattr(event, "author", "")
-#                         for part in event.content.parts or []:
-#                             if hasattr(part, "function_call") and part.function_call:
-#                                 fc = part.function_call
-#                                 if fc.name == "transfer_to_agent":
-#                                     target = dict(fc.args).get("agent_name", "?")
-#                                     print(f"  🔀 [{author}] 轉派 → {target}")
-#                                 else:
-#                                     print(f"  🛠️  [{author}] {fc.name}({dict(fc.args)})")
-#                     except Exception:
-#                         pass
-#                 else:
-#                     try:
-#                         text = event.content.parts[0].text
-#                         if text:
-#                             print(f"\n🤖 Manager：\n{text}\n")
-#                     except Exception:
-#                         pass
-#
-#     asyncio.run(main())
