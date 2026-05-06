@@ -1,16 +1,22 @@
 import importlib.util
 import os
 import sys
+import logging as _logging
 
 from dotenv import load_dotenv
-from google.adk.agents import Agent
-from google.adk.sessions import InMemorySessionService
 from google.adk.tools.preload_memory_tool import PreloadMemoryTool
 from google.adk.tools.tool_context import ToolContext
 from google.adk.models.llm_request import LlmRequest
-import logging as _logging
 
+load_dotenv()
+
+# ==========================================
+# DEBUG_MODE 控制 memory log 顯示
+# .env 設 DEBUG_MODE=1 才顯示，否則靜音
+# ==========================================
+_DEBUG = os.getenv("DEBUG_MODE", "0").strip() == "1"
 _mem_log = _logging.getLogger("memory_debug")
+_mem_log.setLevel(_logging.DEBUG if _DEBUG else _logging.WARNING)
 
 class DebugPreloadMemoryTool(PreloadMemoryTool):
     """PreloadMemoryTool with debug logging."""
@@ -24,15 +30,15 @@ class DebugPreloadMemoryTool(PreloadMemoryTool):
         user_content = tool_context.user_content
         query = (user_content.parts[0].text
                  if user_content and user_content.parts else "(none)")
-        _mem_log.warning(f"[PreloadMemory] 🔍 搜尋 query: {query[:60]}")
+        _mem_log.debug(f"[PreloadMemory] 🔍 搜尋 query: {query[:60]}")
         try:
             response = await tool_context.search_memory(query)
-            _mem_log.warning(f"[PreloadMemory] 結果數: {len(response.memories)}")
+            _mem_log.debug(f"[PreloadMemory] 結果數: {len(response.memories)}")
             for m in response.memories:
                 txt = " ".join(p.text for p in (m.content.parts or []) if p.text)
-                _mem_log.warning(f"[PreloadMemory]   → {txt[:80]}")
+                _mem_log.debug(f"[PreloadMemory]   → {txt[:80]}")
         except Exception as e:
-            _mem_log.warning(f"[PreloadMemory] ❌ search_memory 失敗: {e}")
+            _mem_log.debug(f"[PreloadMemory] ❌ search_memory 失敗: {e}")
             return
         # 仍然呼叫原本邏輯
         await super().process_llm_request(
@@ -42,6 +48,7 @@ from google.adk.agents.callback_context import CallbackContext
 
 load_dotenv()
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "lib"))
+
 from UnifiedMemoryService import UnifiedMemoryService
 # ==========================================
 # Memory Service 初始化（全域，給 Runner 用）
@@ -102,22 +109,18 @@ _sql  = _load("sql_agent_mod",  "sql_agent/sql_agent.py")
 
 async def _auto_save_memory(callback_context: CallbackContext):
     """每次 agent 回應結束後，將本輪 session 存入 memory service。"""
-    import logging
-    _log = logging.getLogger(__name__)
     try:
-        _log.warning("[memory] ⏳ 嘗試 add_session_to_memory...")
         await callback_context.add_session_to_memory()
-        _log.warning("[memory] ✅ add_session_to_memory 成功")
-        # 印出 session 資訊供 debug
-        session = callback_context.session
-        _log.warning(f"[memory] app={session.app_name} user={session.user_id} session={session.id}")
-        for ev in session.events:
-            if ev.content and ev.content.parts:
-                texts = [p.text for p in ev.content.parts if p.text]
-                if texts:
-                    _log.warning(f"[memory]   event author={ev.author}: {' '.join(texts)[:80]}")
+        if _DEBUG:
+            session = callback_context.session
+            _mem_log.debug(f"[memory] ✅ saved app={session.app_name} user={session.user_id} session={session.id}")
+            for ev in session.events:
+                if ev.content and ev.content.parts:
+                    texts = [p.text for p in ev.content.parts if p.text]
+                    if texts:
+                        _mem_log.debug(f"[memory]   {ev.author}: {' '.join(texts)[:80]}")
     except Exception as e:
-        _log.warning(f"[memory] ❌ add_session_to_memory 失敗: {e}")
+        _mem_log.warning(f"[memory]  add_session_to_memory 失敗: {e}")
 
 # ==========================================
 # Root Agent（管理員）
@@ -131,6 +134,7 @@ SYSTEM_INSTRUCTION = (
     "  - alert_agent（通知專員）：新增修改刪除查詢 Google 行事曆 + 發送 Discord 通知\n\n"
     "  - email_agent（電子郵件專員）：發送郵件、查詢未讀、標記已讀 Gmail \n\n"
     "  - sql_agent（專業數據分析助理）：石化業安全督導（Petrochemical Audits）」與「KPI 績效管理」的專業數據分析 \n\n"
+    "  - mediasage_agent (圖書電影評價助理)：一位專業且品味出眾的圖書、電影與影集評價及推薦專家\n\n"
     "【預約三步驟，必須依序實際執行，不得跳過或模擬】\n"
     "  步驟 1：轉派 room_agent 查詢空閒會議室\n"
     "  步驟 2：確認 room_id、user_name、meeting_name 三項資訊後，\n"
@@ -160,7 +164,7 @@ root_agent = Agent(
         _book.book_agent,
         _alert.alert_agent,
         _email.email_agent,
-        _sql.sql_agent
+        _sql.sql_agent,
     ],
     tools=[DebugPreloadMemoryTool()],
     after_agent_callback=_auto_save_memory,
