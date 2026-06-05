@@ -19,6 +19,14 @@ _model_name  = os.getenv("MODEL_NAME", "gemini-2.5-flash")
 if _agent_mode == "ollama":
     from google.adk.models.lite_llm import LiteLlm
     MODEL = LiteLlm(model=f"openai/{_model_name}")
+elif _agent_mode == "litellm":
+    from google.adk.models.lite_llm import LiteLlm
+    _ll_kwargs = {}
+    if os.getenv("LITELLM_BASE_URL"):
+        _ll_kwargs["api_base"] = os.getenv("LITELLM_BASE_URL")
+    if os.getenv("LITELLM_API_KEY"):
+        _ll_kwargs["api_key"] = os.getenv("LITELLM_API_KEY")
+    MODEL = LiteLlm(model=_model_name, **_ll_kwargs)
 else:
     MODEL = _model_name
 

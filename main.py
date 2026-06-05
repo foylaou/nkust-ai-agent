@@ -11,12 +11,12 @@ def print_banner():
     print("="*50)
 
 def stop_server():
-    """強制關閉正在執行 8000 連接埠的背景程式"""
-    print("\n🧹 正在檢查並清理背景服務 (Port 8000)...")
+    """強制關閉正在執行 8080 連接埠的背景程式"""
+    print("\n🧹 正在檢查並清理背景服務 (Port 8080)...")
     try:
         # 在 macOS/Linux 上尋找並關閉程序
         if sys.platform != "win32":
-            result = subprocess.run(["lsof", "-t", "-i:8000"], capture_output=True, text=True)
+            result = subprocess.run(["lsof", "-t", "-i:8080"], capture_output=True, text=True)
             pids = result.stdout.strip().split("\n")
             for pid in pids:
                 if pid:
@@ -40,7 +40,7 @@ def start_dashboard():
     """在背景啟動 Dashboard"""
     print("\n📦 正在啟動會議室看板服務 (Dashboard)...")
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8000"],
+        [sys.executable, "-m", "uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "8080"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
     )

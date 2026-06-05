@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from lib.GeminiADKWrapper import GeminiADKWrapper
 from lib.OllamaChatWrapper import OllamaChatWrapper
 from lib.OpenAIChatWrapper import OpenAIChatWrapper
+from lib.LiteLLMChatWrapper import LiteLLMChatWrapper
 
 load_dotenv()
 
@@ -14,7 +15,7 @@ load_dotenv()
 
 class UnifiedAgent:
     """
-    統一介面的 Agent 工廠類別，支援 Gemini、Ollama 與 OpenAI 模型。
+    統一介面的 Agent 工廠類別，支援 Gemini、Ollama、OpenAI 與 LiteLLM（多供應商）。
 
     根據環境變數 `AGENT_MODE` 決定使用的底層模型與對應的設定。
     提供單一進入點建立聊天會話 (Chat)，屏蔽不同底層模型的差異。
@@ -36,6 +37,18 @@ class UnifiedAgent:
             self.openai_api_key = os.getenv("OPENAI_API_KEY")
             self.openai_base_url = os.getenv("OPENAI_BASE_URL")
             print(f"🤖 目前模式：OpenAI ({self.model})")
+
+        elif self.mode == "litellm":
+            # LiteLLM 模式：MODEL_NAME 直接是完整 litellm 字串（無預設）
+            self.model = env_model
+            if not self.model:
+                raise ValueError(
+                    "AGENT_MODE=litellm 需要設定 MODEL_NAME（完整 litellm 模型字串），"
+                    "例如 anthropic/claude-sonnet-4-5、gpt-4o-mini、groq/llama-3.3-70b-versatile。"
+                )
+            self.litellm_api_key = os.getenv("LITELLM_API_KEY")     # 選用，覆寫各家原生金鑰
+            self.litellm_base_url = os.getenv("LITELLM_BASE_URL")   # 選用，自訂端點
+            print(f"🌐 目前模式：LiteLLM ({self.model})")
 
         else:
             # Ollama 本地模式設定
@@ -73,6 +86,13 @@ class UnifiedAgent:
             return OpenAIChatWrapper(self.model, dated_instruction, tools,
                                      api_key=self.openai_api_key,
                                      base_url=self.openai_base_url)
+
+        elif self.mode == "litellm":
+            if sub_agents:
+                print("⚠️  LiteLLM 模式不支援 sub_agents，請改用 Gemini 模式。")
+            return LiteLLMChatWrapper(self.model, dated_instruction, tools,
+                                      api_key=self.litellm_api_key,
+                                      base_url=self.litellm_base_url)
 
         else:  # ollama
             if sub_agents:

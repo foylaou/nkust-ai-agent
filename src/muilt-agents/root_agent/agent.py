@@ -81,6 +81,21 @@ if _agent_mode == "ollama":
 
     ROOT_MODEL = LiteLlm(model=f"openai/{_root_name}")
     SUB_MODEL  = LiteLlm(model=f"openai/{_sub_name}")
+elif _agent_mode == "litellm":
+    # 完整 litellm 字串直接使用（無預設供應商）；金鑰走各家原生環境變數，
+    # 或用 LITELLM_BASE_URL / LITELLM_API_KEY 指定自架 / OpenAI 相容端點。
+    # ROOT_MODEL 可獨立指定，未設則與 SUB_MODEL 共用 MODEL_NAME。
+    from google.adk.models.lite_llm import LiteLlm
+
+    _ll_kwargs = {}
+    if os.getenv("LITELLM_BASE_URL"):
+        _ll_kwargs["api_base"] = os.getenv("LITELLM_BASE_URL")
+    if os.getenv("LITELLM_API_KEY"):
+        _ll_kwargs["api_key"] = os.getenv("LITELLM_API_KEY")
+
+    _root_name = os.getenv("ROOT_MODEL", _model_name)
+    ROOT_MODEL = LiteLlm(model=_root_name, **_ll_kwargs)
+    SUB_MODEL  = LiteLlm(model=_model_name, **_ll_kwargs)
 else:
     ROOT_MODEL = os.getenv("ROOT_MODEL", "gemini-2.0-flash")
     SUB_MODEL  = _model_name

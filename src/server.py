@@ -4,9 +4,16 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import datetime
 import os
+import sys
 import requests
 import json
 import asyncio
+
+# 確保不論從專案根目錄（uvicorn src.server:app）或 src/（python src/server.py）
+# 啟動，都能找到 src/lib 套件。
+_SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SRC_DIR not in sys.path:
+    sys.path.insert(0, _SRC_DIR)
 
 from lib.UnifiedAgent import UnifiedAgent
 from lib.calendar_utils import real_google_calendar_create_event

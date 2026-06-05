@@ -15,6 +15,19 @@ if _agent_mode == "ollama":
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "lib"))
     from ollama_tools import ollama_web_search
     search_tool = ollama_web_search
+elif _agent_mode == "litellm":
+    # google_search 為 Gemini 專屬內建工具，litellm 接非 Gemini 會失效，
+    # 故改用 model-agnostic 的 ollama_web_search 函式工具（需 OLLAMA_WEB_SEARCH_API_KEY）。
+    from google.adk.models.lite_llm import LiteLlm
+    _ll_kwargs = {}
+    if os.getenv("LITELLM_BASE_URL"):
+        _ll_kwargs["api_base"] = os.getenv("LITELLM_BASE_URL")
+    if os.getenv("LITELLM_API_KEY"):
+        _ll_kwargs["api_key"] = os.getenv("LITELLM_API_KEY")
+    MODEL = LiteLlm(model=_model_name, **_ll_kwargs)
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "lib"))
+    from ollama_tools import ollama_web_search
+    search_tool = ollama_web_search
 else:
     MODEL = _model_name
     from google.adk.tools import google_search
