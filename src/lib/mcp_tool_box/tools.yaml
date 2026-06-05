@@ -1,0 +1,87 @@
+# MCP Toolbox for Databases — 工具設定檔（flat format）
+# 參考：https://mcp-toolbox.dev/documentation/getting-started/mcp_quickstart/
+#
+# 啟動方式（二擇一）：
+#   1) stdio（mcp_tool_agent 預設，自動由 Agent 啟動）：
+#        ./toolbox --config tools.yaml --stdio
+#   2) HTTP server（搭配 ADK ToolboxToolset）：
+#        ./toolbox --config tools.yaml --port 5000
+#
+# 資料庫路徑由環境變數 SQLITE_DATABASE 指定（mcp_tool_agent 會自動帶入絕對路徑）。
+
+kind: source
+name: my-sqlite-db
+type: sqlite
+database: ${SQLITE_DATABASE}
+
+---
+
+kind: tool
+name: search-hotels-by-name
+type: sqlite-sql
+source: my-sqlite-db
+description: 依名稱（模糊比對）搜尋飯店。
+parameters:
+  - name: name
+    type: string
+    description: 飯店名稱關鍵字。
+statement: SELECT * FROM hotels WHERE name LIKE '%' || ? || '%';
+
+---
+
+kind: tool
+name: search-hotels-by-location
+type: sqlite-sql
+source: my-sqlite-db
+description: 依所在城市搜尋飯店。
+parameters:
+  - name: location
+    type: string
+    description: 城市名稱，例如 Basel、Zurich。
+statement: SELECT * FROM hotels WHERE location LIKE '%' || ? || '%';
+
+---
+
+kind: tool
+name: book-hotel
+type: sqlite-sql
+source: my-sqlite-db
+description: 依飯店 id 將飯店標記為已預約。
+parameters:
+  - name: hotel_id
+    type: integer
+    description: 要預約的飯店 id。
+statement: UPDATE hotels SET booked = 1 WHERE id = ?;
+
+---
+
+kind: tool
+name: cancel-hotel
+type: sqlite-sql
+source: my-sqlite-db
+description: 依飯店 id 取消預約（標記為未預約）。
+parameters:
+  - name: hotel_id
+    type: integer
+    description: 要取消預約的飯店 id。
+statement: UPDATE hotels SET booked = 0 WHERE id = ?;
+
+---
+
+kind: tool
+name: list-tables
+type: sqlite-sql
+source: my-sqlite-db
+description: 列出資料庫中所有資料表名稱。
+statement: SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;
+
+---
+
+kind: toolset
+name: hotel-toolset
+tools:
+  - search-hotels-by-name
+  - search-hotels-by-location
+  - book-hotel
+  - cancel-hotel
+  - list-tables

@@ -10,4 +10,5 @@ token.json
 *_token.json
 .env
 dist
-*.db
+
+/src/lib/mcp_tool_box/toolbox

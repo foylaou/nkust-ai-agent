@@ -118,6 +118,7 @@ _book      = _load("book_agent_mod",   "book_agent/book_agent.py")
 _alert     = _load("alert_agent_mod",  "aleart_agent/aleart_agent.py")
 _email     = _load("email_agent_mod",  "email_agent/email_agent.py")
 _sql       = _load("sql_agent_mod",    "sql_agent/sql_agent.py")
+_mcp_tool  = _load("mcp_tool_agent_mod", "mcp_tool_agent/mcp_tool_agent.py")
 
 # ==========================================
 # after_agent_callback：每輪結束自動存入 memory
@@ -149,6 +150,7 @@ SYSTEM_INSTRUCTION = (
     "  - alert_agent（通知專員）：新增修改刪除查詢 Google 行事曆 + 發送 Discord 通知\n\n"
     "  - email_agent（電子郵件專員）：發送郵件、查詢未讀、標記已讀 Gmail\n\n"
     "  - sql_agent（專業數據分析助理）：石化業安全督導（Petrochemical Audits）與 KPI 績效管理的專業數據分析\n\n"
+    "  - mcp_tool_agent（資料庫助理）：透過 MCP Toolbox 操作 SQLite 飯店資料庫（查詢、預約、取消）\n\n"
     "【預約三步驟，必須依序實際執行，不得跳過或模擬】\n"
     "  步驟 1：轉派 room_agent 查詢會議室現況與各時段預約\n"
     "  步驟 2：備齊 room_id、user_name、meeting_name、attendees（與會人數）、\n"
@@ -179,6 +181,7 @@ root_agent = Agent(
         _alert.alert_agent,
         _email.email_agent,
         _sql.sql_agent,
+        _mcp_tool.mcp_tool_agent,
     ],
     tools=[DebugPreloadMemoryTool()],
     after_agent_callback=_auto_save_memory,
